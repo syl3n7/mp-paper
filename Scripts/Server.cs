@@ -1,3 +1,4 @@
+#if USE_ENET
 using Godot;
 using System;
 using System.Collections.Generic;
@@ -203,3 +204,4 @@ public partial class Server : Node
 		GetNodeOrNull($"Player_{clientId}")?.QueueFree();
 	}
 }
+#endif // USE_ENET

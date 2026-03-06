@@ -11,8 +11,11 @@ config_version=5
 [application]
 
 config/name="mp-paper"
+config/description="Research on built-in multiplayer solution of godot vs custom implementation."
+config/version="0.0.1"
 run/main_scene="uid://bar7x2p6ovroq"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+boot_splash/bg_color=Color(0.7781954, 0.38616404, 0.54711425, 1)
 config/icon="res://Textures/icon.svg"
 
 [dotnet]

@@ -1,0 +1,20 @@
+<Project Sdk="Godot.NET.Sdk/4.6.1">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework Condition=" '$(GodotTargetPlatform)' == 'android' ">net9.0</TargetFramework>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>networkcomparison</RootNamespace>
+  </PropertyGroup>
+
+  <!-- Backend A: ENet (built-in Godot transport) -->
+  <!-- Build with: dotnet build -c ENet -->
+  <PropertyGroup Condition="'$(Configuration)' == 'ENet'">
+    <DefineConstants>USE_ENET</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Backend B: your other multiplayer system -->
+  <!-- Build with: dotnet build -c AltNet -->
+  <PropertyGroup Condition="'$(Configuration)' == 'AltNet'">
+    <DefineConstants>USE_ALTNET</DefineConstants>
+  </PropertyGroup>
+</Project>
