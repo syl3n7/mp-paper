@@ -5,11 +5,14 @@ public partial class UIManager : Node
 {
 	// Change this to your server's IP when testing across machines.
 	[Export] public string ServerHost { get; set; } = "127.0.0.1";
+	[Export] public int BuiltInPort { get; set; } = 7777;
+	[Export] public int CustomServerPort { get; set; } = 9000;
 
 	/// <summary>Populated at runtime; Server.cs writes stats into this label.</summary>
 	public Label StatsLabel { get; private set; }
 
-	private Button _spawnClientButton;
+	private Button _spawnBuiltInClientButton;
+	private Button _spawnCustomClientButton;
 
 	public override void _Ready()
 	{
@@ -23,10 +26,20 @@ public partial class UIManager : Node
 		}
 
 		// The button lives under VBoxContainer/SpawnClientButton in the scene.
-		_spawnClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
-		GD.Print($"[UIManager] Button node found: {_spawnClientButton != null}");
-		_spawnClientButton.Pressed += OnSpawnClientPressed;
-		GD.Print("[UIManager] Button Pressed signal connected");
+		_spawnBuiltInClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
+		GD.Print($"[UIManager] Button node found: {_spawnBuiltInClientButton != null}");
+		_spawnBuiltInClientButton.Text = "Open Client (Built-in)";
+		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", BuiltInPort);
+
+		_spawnCustomClientButton = new Button
+		{
+			Name = "SpawnCustomClientButton",
+			Text = "Open Client (Custom C# Server)",
+			SizeFlagsHorizontal = Control.SizeFlags.Fill,
+		};
+		_spawnCustomClientButton.Pressed += () => OnSpawnClientPressed("custom", CustomServerPort);
+		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
+		GD.Print("[UIManager] Built-in and custom client buttons configured");
 
 		// Stats label — added programmatically so the .tscn stays unchanged.
 		StatsLabel = new Label
@@ -44,17 +57,18 @@ public partial class UIManager : Node
 		{
 			if (arg == "--client")
 			{
-				GD.Print("[UIManager] Running as client - hiding spawn button");
-				_spawnClientButton.Visible = false;
+				GD.Print("[UIManager] Running as client - hiding spawn buttons");
+				_spawnBuiltInClientButton.Visible = false;
+				_spawnCustomClientButton.Visible = false;
 				return;
 			}
 		}
-		GD.Print("[UIManager] Running as server/host - spawn button is visible");
+		GD.Print("[UIManager] Running as server/host - spawn buttons are visible");
 	}
 
-	private void OnSpawnClientPressed()
+	private void OnSpawnClientPressed(string networkMode, int port)
 	{
-		GD.Print("[UIManager] Spawn Client button pressed!");
+		GD.Print($"[UIManager] Spawn Client button pressed ({networkMode})");
 
 		string execPath = OS.GetExecutablePath();
 		GD.Print($"[UIManager] Executable path: {execPath}");
@@ -79,6 +93,18 @@ public partial class UIManager : Node
 		argsList.Add("--client");
 		argsList.Add("--host");
 		argsList.Add(ServerHost);
+		argsList.Add("--network");
+		argsList.Add(networkMode);
+		if (networkMode == "custom")
+		{
+			argsList.Add("--custom-port");
+			argsList.Add(port.ToString());
+		}
+		else
+		{
+			argsList.Add("--port");
+			argsList.Add(port.ToString());
+		}
 
 		GD.Print($"[UIManager] Launching process with args: [{string.Join(" ", argsList)}]");
 		long pid = OS.CreateProcess(execPath, argsList.ToArray());

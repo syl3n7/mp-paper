@@ -2,10 +2,20 @@ using Godot;
 
 public partial class Client : Node
 {
+    public enum NetworkBackend
+    {
+        BuiltInEnet,
+        CustomServer,
+    }
+
     [Export] public string Host { get; set; } = "127.0.0.1";
     [Export] public int    Port { get; set; } = 7777;
+    [Export] public int    CustomPort { get; set; } = 9000;
+    [Export] public NetworkBackend Backend { get; set; } = NetworkBackend.BuiltInEnet;
 
     private ENetMultiplayerPeer _peer;
+    private StreamPeerTcp _customSocket;
+    private StreamPeerTcp.Status _customStatus = StreamPeerTcp.Status.None;
 
     public override void _Ready()
     {
@@ -25,19 +35,70 @@ public partial class Client : Node
                 Host = args[i + 1];
                 GD.Print($"[Client] Host overridden to: {Host}");
             }
+            if (args[i] == "--port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int enetPort))
+            {
+                Port = enetPort;
+                GD.Print($"[Client] ENet port overridden to: {Port}");
+            }
+            if (args[i] == "--custom-port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int customPort))
+            {
+                CustomPort = customPort;
+                GD.Print($"[Client] Custom server port overridden to: {CustomPort}");
+            }
+            if (args[i] == "--network" && i + 1 < args.Length)
+            {
+                string requestedBackend = args[i + 1].ToLowerInvariant();
+                if (requestedBackend == "custom")
+                    Backend = NetworkBackend.CustomServer;
+                else if (requestedBackend == "enet")
+                    Backend = NetworkBackend.BuiltInEnet;
+
+                GD.Print($"[Client] Network backend set to: {Backend}");
+            }
         }
 
-        GD.Print($"[Client] isClient={isClient}, Host={Host}, Port={Port}");
+        GD.Print($"[Client] isClient={isClient}, Host={Host}, Port={Port}, CustomPort={CustomPort}, Backend={Backend}");
         if (!isClient)
         {
             GD.Print("[Client] Not a client instance - skipping connection");
             return;
         }
 
-        ConnectToServer();
+        ConnectToSelectedBackend();
     }
 
-    private void ConnectToServer()
+    public override void _Process(double delta)
+    {
+        if (_customSocket == null)
+            return;
+
+        _customSocket.Poll();
+        var status = _customSocket.GetStatus();
+        if (status == _customStatus)
+            return;
+
+        _customStatus = status;
+        GD.Print($"[Client] Custom socket status: {_customStatus}");
+    }
+
+    public override void _ExitTree()
+    {
+        if (_customSocket != null)
+            _customSocket.DisconnectFromHost();
+    }
+
+    private void ConnectToSelectedBackend()
+    {
+        if (Backend == NetworkBackend.CustomServer)
+        {
+            ConnectToCustomServer();
+            return;
+        }
+
+        ConnectToBuiltInServer();
+    }
+
+    private void ConnectToBuiltInServer()
     {
         GD.Print($"[Client] ConnectToServer() - connecting to {Host}:{Port}...");
         _peer = new ENetMultiplayerPeer();
@@ -57,6 +118,22 @@ public partial class Client : Node
         Multiplayer.ConnectionFailed += OnConnectionFailed;
 
         GD.Print($"[Client] Waiting for connection to {Host}:{Port}...");
+    }
+
+    private void ConnectToCustomServer()
+    {
+        GD.Print($"[Client] ConnectToCustomServer() - connecting to {Host}:{CustomPort}...");
+        _customSocket = new StreamPeerTcp();
+        var err = _customSocket.ConnectToHost(Host, CustomPort);
+        if (err != Error.Ok)
+        {
+            GD.PrintErr($"[Client] Failed to connect to custom server at {Host}:{CustomPort} ({err})");
+            _customSocket = null;
+            return;
+        }
+
+        SetProcess(true);
+        GD.Print("[Client] Custom server connection attempt started");
     }
 
     private void OnPeerConnected(long id) => GD.Print($"[Client] OnPeerConnected - server peer id: {id}, my id: {Multiplayer.GetUniqueId()}");
