@@ -6,13 +6,13 @@
     <RootNamespace>networkcomparison</RootNamespace>
   </PropertyGroup>
 
-  <!-- Backend A: ENet (built-in Godot transport) -->
-  <!-- Build with: dotnet build -c ENet -->
-  <PropertyGroup Condition="'$(Configuration)' == 'ENet'">
+  <!-- Backend A: ENet (built-in Godot transport) — default for all configs -->
+  <!-- Override with: dotnet build -c AltNet to use the custom backend -->
+  <PropertyGroup Condition="'$(Configuration)' != 'AltNet'">
     <DefineConstants>USE_ENET</DefineConstants>
   </PropertyGroup>
 
-  <!-- Backend B: your other multiplayer system -->
+  <!-- Backend B: your custom multiplayer system -->
   <!-- Build with: dotnet build -c AltNet -->
   <PropertyGroup Condition="'$(Configuration)' == 'AltNet'">
     <DefineConstants>USE_ALTNET</DefineConstants>
