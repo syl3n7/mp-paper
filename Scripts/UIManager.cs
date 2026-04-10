@@ -11,8 +11,7 @@ public partial class UIManager : Node
 	/// <summary>Populated at runtime; Server.cs writes stats into this label.</summary>
 	public Label StatsLabel { get; private set; }
 
-	private Button _spawnBuiltInClientButton;
-	private Button _spawnCustomClientButton;
+	private Button _spawnClientButton;
 
 	public override void _Ready()
 	{
@@ -25,21 +24,17 @@ public partial class UIManager : Node
 			return;
 		}
 
-		// The button lives under VBoxContainer/SpawnClientButton in the scene.
-		_spawnBuiltInClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
-		GD.Print($"[UIManager] Button node found: {_spawnBuiltInClientButton != null}");
-		_spawnBuiltInClientButton.Text = "Open Client (Built-in)";
-		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", BuiltInPort);
+		// Determine the backend from the Client node's exported Backend property.
+		var clientNode = GetNodeOrNull<Client>("../../Client");
+		bool useCustom = clientNode != null && clientNode.Backend == Client.NetworkBackend.CustomServer;
+		string networkMode = useCustom ? "custom" : "enet";
+		int port = useCustom ? CustomServerPort : BuiltInPort;
+		GD.Print($"[UIManager] Detected backend: {networkMode}");
 
-		_spawnCustomClientButton = new Button
-		{
-			Name = "SpawnCustomClientButton",
-			Text = "Open Client (Custom C# Server)",
-			SizeFlagsHorizontal = Control.SizeFlags.Fill,
-		};
-		_spawnCustomClientButton.Pressed += () => OnSpawnClientPressed("custom", CustomServerPort);
-		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
-		GD.Print("[UIManager] Built-in and custom client buttons configured");
+		_spawnClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
+		_spawnClientButton.Text = "Open Client";
+		_spawnClientButton.Pressed += () => OnSpawnClientPressed(networkMode, port);
+		GD.Print("[UIManager] Spawn client button configured");
 
 		// Stats label — added programmatically so the .tscn stays unchanged.
 		StatsLabel = new Label
@@ -57,9 +52,8 @@ public partial class UIManager : Node
 		{
 			if (arg == "--client")
 			{
-				GD.Print("[UIManager] Running as client - hiding spawn buttons");
-				_spawnBuiltInClientButton.Visible = false;
-				_spawnCustomClientButton.Visible = false;
+				GD.Print("[UIManager] Running as client - hiding spawn button");
+				_spawnClientButton.Visible = false;
 				return;
 			}
 		}
