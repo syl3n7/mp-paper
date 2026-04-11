@@ -6,7 +6,8 @@ public partial class UIManager : Node
 	// Change this to your server's IP when testing across machines.
 	[Export] public string ServerHost { get; set; } = "127.0.0.1";
 	[Export] public int BuiltInPort { get; set; } = 7777;
-	[Export] public int CustomServerPort { get; set; } = 9000;
+	[Export] public int CustomServerPort { get; set; } = 7777;
+	[Export] public int CustomServerUdpPort { get; set; } = 7778;
 
 	/// <summary>Populated at runtime; Server.cs writes stats into this label.</summary>
 	public Label StatsLabel { get; private set; }
@@ -29,7 +30,7 @@ public partial class UIManager : Node
 		_spawnBuiltInClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
 		GD.Print($"[UIManager] Button node found: {_spawnBuiltInClientButton != null}");
 		_spawnBuiltInClientButton.Text = "Open Client (Built-in)";
-		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", BuiltInPort);
+		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", BuiltInPort, 0);
 
 		_spawnCustomClientButton = new Button
 		{
@@ -37,7 +38,7 @@ public partial class UIManager : Node
 			Text = "Open Client (Custom C# Server)",
 			SizeFlagsHorizontal = Control.SizeFlags.Fill,
 		};
-		_spawnCustomClientButton.Pressed += () => OnSpawnClientPressed("custom", CustomServerPort);
+		_spawnCustomClientButton.Pressed += () => OnSpawnClientPressed("custom", CustomServerPort, CustomServerUdpPort);
 		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
 		GD.Print("[UIManager] Built-in and custom client buttons configured");
 
@@ -66,7 +67,7 @@ public partial class UIManager : Node
 		GD.Print("[UIManager] Running as server/host - spawn buttons are visible");
 	}
 
-	private void OnSpawnClientPressed(string networkMode, int port)
+	private void OnSpawnClientPressed(string networkMode, int port, int udpPort)
 	{
 		GD.Print($"[UIManager] Spawn Client button pressed ({networkMode})");
 
@@ -99,6 +100,8 @@ public partial class UIManager : Node
 		{
 			argsList.Add("--custom-port");
 			argsList.Add(port.ToString());
+			argsList.Add("--udp-port");
+			argsList.Add(udpPort.ToString());
 		}
 		else
 		{
