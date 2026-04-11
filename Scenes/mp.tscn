@@ -1,5 +1,6 @@
 [gd_scene format=3 uid="uid://bar7x2p6ovroq"]
 
+[ext_resource type="Script" uid="uid://cbq54m5ljtl5e" path="res://Scripts/Server.cs" id="3_b3xfe"]
 [ext_resource type="Script" uid="uid://c7amklknxp81r" path="res://Scripts/Client.cs" id="3_client"]
 [ext_resource type="Script" uid="uid://d0sjsvrmltvc6" path="res://Scripts/UIManager.cs" id="4_uimgr"]
 
@@ -30,6 +31,7 @@ text = "Open New Client"
 
 [node name="Client" type="Node" parent="." unique_id=1176781707]
 script = ExtResource("3_client")
-Host = "100.88.168.82"
+Backend = 1
 
 [node name="Server" type="Node" parent="." unique_id=346389787]
+script = ExtResource("3_b3xfe")
