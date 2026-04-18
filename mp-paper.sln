@@ -1,6 +1,6 @@
 ﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "network-comparison", "network-comparison.csproj", "{687AC26B-2DFF-4FDD-B18A-26E39EEEA31A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "mp-paper", "mp-paper.csproj", "{687AC26B-2DFF-4FDD-B18A-26E39EEEA31A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

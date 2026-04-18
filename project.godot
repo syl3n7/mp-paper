@@ -20,7 +20,7 @@ config/icon="res://Textures/icon.svg"
 
 [dotnet]
 
-project/assembly_name="network-comparison"
+project/assembly_name="mp-paper"
 
 [input]
 
