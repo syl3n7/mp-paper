@@ -28,7 +28,7 @@ public partial class Client : Node
 		bool isClient = false;
 		for (int i = 0; i < args.Length; i++)
 		{
-			if (args[i] == "--client")
+			if (args[i] == "--client" || args[i] == "--bot")
 				isClient = true;
 			if (args[i] == "--host" && i + 1 < args.Length)
 			{

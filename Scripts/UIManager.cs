@@ -14,6 +14,7 @@ public partial class UIManager : Node
 
 	private Button _spawnBuiltInClientButton;
 	private Button _spawnCustomClientButton;
+	private Button _spawnBotButton;
 
 	public override void _Ready()
 	{
@@ -42,6 +43,16 @@ public partial class UIManager : Node
 		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
 		GD.Print("[UIManager] Built-in and custom client buttons configured");
 
+		_spawnBotButton = new Button
+		{
+			Name                 = "SpawnBotButton",
+			Text                 = "Spawn Bot (ENet)",
+			SizeFlagsHorizontal  = Control.SizeFlags.Fill,
+		};
+		_spawnBotButton.Pressed += OnSpawnBotPressed;
+		GetNode("VBoxContainer").AddChild(_spawnBotButton);
+		GD.Print("[UIManager] Bot button configured");
+
 		// Stats label — added programmatically so the .tscn stays unchanged.
 		StatsLabel = new Label
 		{
@@ -56,19 +67,19 @@ public partial class UIManager : Node
 		GD.Print($"[UIManager] Command-line user args: [{string.Join(", ", args)}]");
 		foreach (var arg in args)
 		{
-			if (arg == "--client")
+			if (arg == "--client" || arg == "--bot")
 			{
-				GD.Print("[UIManager] Running as client - hiding spawn buttons");
+				GD.Print("[UIManager] Running as client/bot - hiding spawn buttons");
 				_spawnBuiltInClientButton.Visible = false;
-				_spawnCustomClientButton.Visible = false;
+				_spawnCustomClientButton.Visible  = false;
+				_spawnBotButton.Visible           = false;
 				return;
 			}
 		}
 		GD.Print("[UIManager] Running as server/host - spawn buttons are visible");
 	}
 
-	private void OnSpawnClientPressed(string networkMode, int port, int udpPort)
-	{
+	private void OnSpawnClientPressed(string networkMode, int port, int udpPort)	{
 		GD.Print($"[UIManager] Spawn Client button pressed ({networkMode})");
 
 		string execPath = OS.GetExecutablePath();
@@ -112,5 +123,33 @@ public partial class UIManager : Node
 		GD.Print($"[UIManager] Launching process with args: [{string.Join(" ", argsList)}]");
 		long pid = OS.CreateProcess(execPath, argsList.ToArray());
 		GD.Print($"[UIManager] OS.CreateProcess returned PID: {pid}");
+	}
+
+	private void OnSpawnBotPressed()
+	{
+		GD.Print("[UIManager] Spawn Bot button pressed");
+
+		string execPath = OS.GetExecutablePath();
+		var argsList    = new List<string>();
+
+		if (OS.HasFeature("editor"))
+		{
+			string projectPath = ProjectSettings.GlobalizePath("res://");
+			argsList.Add("--path");
+			argsList.Add(projectPath);
+		}
+
+		argsList.Add("--");
+		argsList.Add("--bot");          // triggers Client connection + Player AI mode
+		argsList.Add("--host");
+		argsList.Add(ServerHost);
+		argsList.Add("--network");
+		argsList.Add("enet");
+		argsList.Add("--port");
+		argsList.Add(BuiltInPort.ToString());
+
+		GD.Print($"[UIManager] Launching bot process with args: [{string.Join(" ", argsList)}]");
+		long pid = OS.CreateProcess(execPath, argsList.ToArray());
+		GD.Print($"[UIManager] Bot process PID: {pid}");
 	}
 }
