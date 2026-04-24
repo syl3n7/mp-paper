@@ -14,3 +14,12 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# macOS metadata
+.DS_Store
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.synctex.gz
+IEEEtran_HOWTO.pdf
