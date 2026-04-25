@@ -13,8 +13,8 @@
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
 
-\title{Multiplayer Comparison
-\thanks{Thanks to my mom for putting up with me.}
+\title{Multiplayer Comparison%
+\thanks{Thanks to my mom for putting up with me.}}
 
 \author{\IEEEauthorblockN{1\textsuperscript{st} Cláudio Pinheiro}
 \IEEEauthorblockA{\textit{Student}\\
@@ -32,7 +32,7 @@ or Math in Paper Title or Abstract.
 \end{abstract}
 
 \begin{IEEEkeywords}
-component, formatting, style, styling, insert.
+enet, godotnet, multiplayer, game development, backend, performance comparison.
 \end{IEEEkeywords}
 
 \section{Introduction}
@@ -54,7 +54,7 @@ game development.
 
 Two principal approaches have emerged to address real-time game networking
 requirements. The first relies on purpose-engineered reliable UDP libraries, of which
-ENet \cite{enet} is a widely adopted example, serving as the default transport layer
+ENet \cite{enet} is a widely adopted example within games made with Godot, serving as the default transport layer
 within Godot Engine's high-level multiplayer subsystem \cite{godotnet}. The second
 involves bespoke server infrastructure, wherein transport protocols and world-state
 authority are implemented directly by the developer, affording greater control at the
@@ -62,10 +62,6 @@ cost of additional implementation effort \cite{gambetta2018}. The performance
 trade-offs between these two approaches in the context of Godot 4's revised networking
 layer have not, to the knowledge of the present author, been the subject of prior
 systematic empirical evaluation.
-
-The remainder of this paper is organised as follows. Section~\ref{sec:method} presents
-the materials and methods. Section~\ref{sec:status} characterises the current
-implementation status, and Section~\ref{sec:conclusion} offers concluding remarks.
 
 \subsection{Abbreviations and Acronyms}\label{AA}
 Define abbreviations and acronyms the first time they are used in the text, 
@@ -203,11 +199,11 @@ copy& More table copy$^{\mathrm{a}}$& &  \\
 \end{center}
 \end{table}
 
-\begin{figure}[htbp]
-\centerline{\includegraphics{fig1.png}}
-\caption{Example of a figure caption.}
-\label{fig}
-\end{figure}
+%\begin{figure}[htbp]
+%\centerline{\includegraphics{fig1.png}}
+%\caption{Example of a figure caption.}
+%\label{fig}
+%\end{figure}
 
 Figure Labels: Use 8 point Times New Roman for Figure labels. Use words 
 rather than symbols or abbreviations when writing Figure axis labels to 

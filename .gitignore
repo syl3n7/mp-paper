@@ -23,3 +23,4 @@ mono_crash.*.json
 *.log
 *.synctex.gz
 IEEEtran_HOWTO.pdf
+.PDF

@@ -1,6 +1,6 @@
 # Fdb version 4
-["pdflatex"] 1777138571.46908 "/Users/lau/Projects/mp-paper/documentation/latex/IEEE-conference-template-062824.tex" "IEEE-conference-template-062824.pdf" "IEEE-conference-template-062824" 1777138571.70567 2
-  "/Users/lau/Projects/mp-paper/documentation/latex/IEEE-conference-template-062824.tex" 1777138570.21403 15742 29835a81dba3f9ec65b659ed1632c8bc ""
+["pdflatex"] 1777139831.0478 "/Users/lau/Projects/mp-paper/documentation/latex/IEEE-conference-template-062824.tex" "IEEE-conference-template-062824.pdf" "IEEE-conference-template-062824" 1777139831.46491 0
+  "/Users/lau/Projects/mp-paper/documentation/latex/IEEE-conference-template-062824.tex" 1777139830.38295 15562 8c404a2fdc7c109f9d17b23263557d43 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/enc/dvips/base/8r.enc" 1165713224 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1136768653 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -86,10 +86,9 @@
   "/usr/local/texlive/2026/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1774781026 5573038 b99aad5e4898a9034e953632f940512b ""
   "/usr/local/texlive/2026/texmf-var/web2c/pdftex/pdflatex.fmt" 1774780948 3636775 1708401426dff2194e4f5af6450a5337 ""
   "/usr/local/texlive/2026/texmf.cnf" 1774209515 577 648cd9f92f9c0eac486f4c71c85cfbbe ""
-  "IEEE-conference-template-062824.aux" 1777138571.68966 8 a94a2480d3289e625eea47cd1b285758 "pdflatex"
-  "IEEE-conference-template-062824.tex" 1777138570.21403 15742 29835a81dba3f9ec65b659ed1632c8bc ""
+  "IEEE-conference-template-062824.aux" 1777139831.4205 2293 8c2b7068f5a89c8921ca15601bde6101 "pdflatex"
+  "IEEE-conference-template-062824.tex" 1777139830.38295 15562 8c404a2fdc7c109f9d17b23263557d43 ""
   "IEEEtran.cls" 1777137982.3939 288304 b67b6fc6c2abb39f9b461923f5199343 ""
-  "fig1.png" 0 -1 0 ""
   (generated)
   "IEEE-conference-template-062824.aux"
   "IEEE-conference-template-062824.log"
