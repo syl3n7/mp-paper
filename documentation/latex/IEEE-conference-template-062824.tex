@@ -15,7 +15,6 @@
 
 \title{Multiplayer Comparison
 \thanks{Thanks to my mom for putting up with me.}
-}
 
 \author{\IEEEauthorblockN{1\textsuperscript{st} Cláudio Pinheiro}
 \IEEEauthorblockA{\textit{Student}\\
@@ -37,28 +36,36 @@ component, formatting, style, styling, insert.
 \end{IEEEkeywords}
 
 \section{Introduction}
-This document is a model and instructions for \LaTeX.
-Please observe the conference page limits. For more information about how to become an IEEE Conference author or how to write your paper, please visit   IEEE Conference Author Center website: https://conferences.ieeeauthorcenter.ieee.org/.
 
-\subsection{Maintaining the Integrity of the Specifications}
+The increasing prevalence of real-time networked multiplayer applications has
+precipitated substantial growth in the demand for robust and efficient network
+architectures capable of sustaining low-latency communication across distributed
+client populations. Within game development in particular, the choice of networking
+backend constitutes an early and consequential design decision, as empirical studies
+have established perceptual degradation thresholds as low as 100 to 150 milliseconds
+of round-trip time in action-oriented contexts \cite{beigbeder2004}. This work
+originates from the author's intent to acquire practical familiarity with Godot's
+native ENet multiplayer facilities, and thereafter to compare them against an existing
+custom C\# server developed previously for a racing game project. This investigation
+is further motivated by the author's intended specialisation in backend and multiplayer
+game development.
 
-The IEEEtran class file is used to format your paper and style the text. All margins, 
-column widths, line spaces, and text fonts are prescribed; please do not 
-alter them. You may note peculiarities. For example, the head margin
-measures proportionately more than is customary. This measurement 
-and others are deliberate, using specifications that anticipate your paper 
-as one part of the entire proceedings, and not as an independent document. 
-Please do not revise any of the current designations.
+\subsection{Related Work}
 
-\section{Prepare Your Paper Before Styling}
-Before you begin to format your paper, first write and save the content as a 
-separate text file. Complete all content and organizational editing before 
-formatting. Please note sections \ref{AA} to \ref{FAT} below for more information on 
-proofreading, spelling and grammar.
+Two principal approaches have emerged to address real-time game networking
+requirements. The first relies on purpose-engineered reliable UDP libraries, of which
+ENet \cite{enet} is a widely adopted example, serving as the default transport layer
+within Godot Engine's high-level multiplayer subsystem \cite{godotnet}. The second
+involves bespoke server infrastructure, wherein transport protocols and world-state
+authority are implemented directly by the developer, affording greater control at the
+cost of additional implementation effort \cite{gambetta2018}. The performance
+trade-offs between these two approaches in the context of Godot 4's revised networking
+layer have not, to the knowledge of the present author, been the subject of prior
+systematic empirical evaluation.
 
-Keep your text and graphic files separate until after the text has been 
-formatted and styled. Do not number text heads---{\LaTeX} will do that 
-for you.
+The remainder of this paper is organised as follows. Section~\ref{sec:method} presents
+the materials and methods. Section~\ref{sec:status} characterises the current
+implementation status, and Section~\ref{sec:conclusion} offers concluding remarks.
 
 \subsection{Abbreviations and Acronyms}\label{AA}
 Define abbreviations and acronyms the first time they are used in the text, 
