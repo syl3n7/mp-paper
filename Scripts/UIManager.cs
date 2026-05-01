@@ -15,6 +15,7 @@ public partial class UIManager : Node
 	private Button _spawnBuiltInClientButton;
 	private Button _spawnCustomClientButton;
 	private Button _spawnBotButton;
+	private Button _exportLogButton;
 
 	public override void _Ready()
 	{
@@ -53,6 +54,16 @@ public partial class UIManager : Node
 		GetNode("VBoxContainer").AddChild(_spawnBotButton);
 		GD.Print("[UIManager] Bot button configured");
 
+		_exportLogButton = new Button
+		{
+			Name                = "ExportLogButton",
+			Text                = "Export Metrics Logs…",
+			SizeFlagsHorizontal = Control.SizeFlags.Fill,
+		};
+		_exportLogButton.Pressed += OnExportLogPressed;
+		GetNode("VBoxContainer").AddChild(_exportLogButton);
+		GD.Print("[UIManager] Export log button configured");
+
 		// Stats label — added programmatically so the .tscn stays unchanged.
 		StatsLabel = new Label
 		{
@@ -73,6 +84,7 @@ public partial class UIManager : Node
 				_spawnBuiltInClientButton.Visible = false;
 				_spawnCustomClientButton.Visible  = false;
 				_spawnBotButton.Visible           = false;
+				_exportLogButton.Visible          = false;
 				return;
 			}
 		}
@@ -151,5 +163,52 @@ public partial class UIManager : Node
 		GD.Print($"[UIManager] Launching bot process with args: [{string.Join(" ", argsList)}]");
 		long pid = OS.CreateProcess(execPath, argsList.ToArray());
 		GD.Print($"[UIManager] Bot process PID: {pid}");
+	}
+
+	// ─── Metrics log export ───────────────────────────────────────────────────
+
+	private FileDialog _exportDialog;
+
+	private void EnsureExportDialog()
+	{
+		if (_exportDialog != null) return;
+
+		var server   = GetNodeOrNull<Server>("../../Server");
+		string start = server != null
+			? System.IO.Path.GetDirectoryName(server.ResolveServerCsvPath()) ?? OS.GetUserDataDir()
+			: OS.GetUserDataDir();
+
+		_exportDialog = new FileDialog
+		{
+			Title             = "Choose export folder for metrics logs",
+			FileMode          = FileDialog.FileModeEnum.OpenDir,
+			Access            = FileDialog.AccessEnum.Filesystem,
+			CurrentDir        = start,
+			Size              = new Vector2I(800, 500),
+			UseNativeDialog   = false,
+		};
+		_exportDialog.DirSelected += OnExportFolderSelected;
+		AddChild(_exportDialog);
+	}
+
+	private void OnExportLogPressed()
+	{
+		GD.Print("[UIManager] Export log button pressed — opening folder picker");
+		EnsureExportDialog();
+		_exportDialog.PopupCentered();
+	}
+
+	private void OnExportFolderSelected(string targetDir)
+	{
+		GD.Print($"[UIManager] Exporting metrics to: {targetDir}");
+
+		var server = GetNodeOrNull<Server>("../../Server");
+		if (server == null)
+		{
+			GD.PrintErr("[UIManager] Export: Server node not found");
+			return;
+		}
+
+		server.ExportMetricsTo(targetDir);
 	}
 }
