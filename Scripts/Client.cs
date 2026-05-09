@@ -13,6 +13,7 @@ public partial class Client : Node
 	[Export] public int    CustomPort { get; set; } = 9000;
 	[Export] public int    UdpPort { get; set; } = 7778;
 	[Export] public NetworkBackend Backend { get; set; } = NetworkBackend.BuiltInEnet;
+	[Export] public string AutoJoinToken { get; set; } = "test-lab";
 
 	private ENetMultiplayerPeer     _peer;
 	private CustomNetworkClient      _customNet;
@@ -60,6 +61,7 @@ public partial class Client : Node
 
 				GD.Print($"[Client] Network backend set to: {Backend}");
 			}
+
 		}
 
 		GD.Print($"[Client] isClient={isClient}, Host={Host}, Port={Port}, CustomPort={CustomPort}, Backend={Backend}");
@@ -179,7 +181,7 @@ public partial class Client : Node
 	private void OnAuthenticated(string username)
 	{
 		GD.Print($"[Client] Authenticated as: {username}");
-		_customNet.ListRooms();
+		_customNet.AutoJoin(AutoJoinToken);
 	}
 
 	// ── Room callbacks ────────────────────────────────────────────────────────

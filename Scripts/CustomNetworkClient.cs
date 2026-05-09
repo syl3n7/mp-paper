@@ -233,6 +233,18 @@ public partial class CustomNetworkClient : Node
 			{ "message",  message         },
 		});
 
+	/// <summary>
+	/// Request automatic placement into the shared test room identified by <paramref name="token"/>.
+	/// On success the server returns JOIN_OK (autoJoined=true) and <see cref="RoomJoinedEventHandler"/> fires.
+	/// On failure the server returns ERROR and <see cref="RoomErrorEventHandler"/> fires.
+	/// </summary>
+	public void AutoJoin(string token)
+		=> Send(new Godot.Collections.Dictionary
+		{
+			{ "command", "AUTO_JOIN" },
+			{ "token",   token       },
+		});
+
 	// ── AES crypto + UDP helpers ──────────────────────────────────────────────
 
 	private void InitUdpCrypto(string host, int udpPort)
@@ -672,7 +684,8 @@ public partial class CustomNetworkClient : Node
 			case "JOIN_OK":
 			{
 				CurrentRoomId = msg.ContainsKey("roomId") ? msg["roomId"].AsString() : "";
-				GD.Print($"[CustomNet] Joined room: {CurrentRoomId}");
+				bool autoJoined = msg.ContainsKey("autoJoined") && msg["autoJoined"].AsBool();
+				GD.Print($"[CustomNet] Joined room: {CurrentRoomId}{(autoJoined ? " (auto-joined)" : "")}");
 				EmitSignal(SignalName.RoomJoined, CurrentRoomId);
 				return;
 			}
