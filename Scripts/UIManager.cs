@@ -4,10 +4,11 @@ using System.Collections.Generic;
 public partial class UIManager : Node
 {
 	// Change this to your server's IP when testing across machines.
-	[Export] public string ServerHost { get; set; } = "127.0.0.1";
-	[Export] public int BuiltInPort { get; set; } = 7777;
-	[Export] public int CustomServerPort { get; set; } = 7777;
-	[Export] public int CustomServerUdpPort { get; set; } = 7778;
+	[Export] public string ServerHost    { get; set; } = "127.0.0.1";
+	[Export] public int    EnetPort      { get; set; } = 7777;
+	[Export] public int    EnetUdpPort   { get; set; } = 7778;
+	[Export] public int    CustomTcpPort { get; set; } = 7777;
+	[Export] public int    CustomUdpPort { get; set; } = 7778;
 
 	/// <summary>Populated at runtime; Server.cs writes stats into this label.</summary>
 	public Label StatsLabel { get; private set; }
@@ -32,15 +33,15 @@ public partial class UIManager : Node
 		_spawnBuiltInClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
 		GD.Print($"[UIManager] Button node found: {_spawnBuiltInClientButton != null}");
 		_spawnBuiltInClientButton.Text = "Open Client (Built-in)";
-		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", BuiltInPort, 0);
+		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", EnetPort, EnetUdpPort);
 
 		_spawnCustomClientButton = new Button
 		{
 			Name = "SpawnCustomClientButton",
-			Text = "Open Client (Custom C# Server)",
+			Text = "Spawn Bot (Custom)",
 			SizeFlagsHorizontal = Control.SizeFlags.Fill,
 		};
-		_spawnCustomClientButton.Pressed += () => OnSpawnClientPressed("custom", CustomServerPort, CustomServerUdpPort);
+		_spawnCustomClientButton.Pressed += OnSpawnCustomBotPressed;
 		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
 		GD.Print("[UIManager] Built-in and custom client buttons configured");
 
@@ -139,8 +140,18 @@ public partial class UIManager : Node
 
 	private void OnSpawnBotPressed()
 	{
-		GD.Print("[UIManager] Spawn Bot button pressed");
+		GD.Print("[UIManager] Spawn Bot (ENet) button pressed");
+		SpawnBot("enet", EnetPort, EnetUdpPort);
+	}
 
+	private void OnSpawnCustomBotPressed()
+	{
+		GD.Print("[UIManager] Spawn Bot (Custom) button pressed");
+		SpawnBot("custom", CustomTcpPort, CustomUdpPort);
+	}
+
+	private void SpawnBot(string networkMode, int port, int udpPort)
+	{
 		string execPath = OS.GetExecutablePath();
 		var argsList    = new List<string>();
 
@@ -156,9 +167,19 @@ public partial class UIManager : Node
 		argsList.Add("--host");
 		argsList.Add(ServerHost);
 		argsList.Add("--network");
-		argsList.Add("enet");
-		argsList.Add("--port");
-		argsList.Add(BuiltInPort.ToString());
+		argsList.Add(networkMode);
+		if (networkMode == "custom")
+		{
+			argsList.Add("--custom-port");
+			argsList.Add(port.ToString());
+			argsList.Add("--udp-port");
+			argsList.Add(udpPort.ToString());
+		}
+		else
+		{
+			argsList.Add("--port");
+			argsList.Add(port.ToString());
+		}
 
 		GD.Print($"[UIManager] Launching bot process with args: [{string.Join(" ", argsList)}]");
 		long pid = OS.CreateProcess(execPath, argsList.ToArray());

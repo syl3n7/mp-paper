@@ -167,11 +167,10 @@ public partial class CustomNetworkClient : Node
 		if (!_udpReady) return;
 		var data = new Godot.Collections.Dictionary
 		{
-			{ "command",   "UPDATE"    },
-			{ "sessionId", SessionId   },
-			{ "position",  new Godot.Collections.Dictionary
+			{ "command",  "UPDATE" },
+			{ "position", new Godot.Collections.Dictionary
 				{ { "x", position.X }, { "y", position.Y }, { "z", position.Z } } },
-			{ "rotation",  new Godot.Collections.Dictionary
+			{ "rotation", new Godot.Collections.Dictionary
 				{ { "x", rotation.X }, { "y", rotation.Y },
 				  { "z", rotation.Z }, { "w", rotation.W } } },
 		};
@@ -253,7 +252,7 @@ public partial class CustomNetworkClient : Node
 		UdpPort = udpPort;
 
 		// Key derivation: SHA-256( sessionId + sharedSecret )
-		// First 32 bytes → AES-256 key, bytes 16-31 → CBC IV
+		// sessionId is the raw "N" format GUID (no hyphens) exactly as received from the server.
 		var material = Encoding.UTF8.GetBytes(SessionId + UdpSharedSecret);
 		var hash     = SHA256.HashData(material);   // 32 bytes
 		_aesKey = hash[..32];                       // all 32
@@ -562,7 +561,9 @@ public partial class CustomNetworkClient : Node
 		// Detect remote close.
 		if (_tls.GetStatus() != StreamPeerTls.Status.Connected)
 		{
-			GD.Print("[CustomNet] TLS link lost");
+			GD.PrintErr($"[CustomNet] TLS link lost — status: {_tls.GetStatus()}");
+			if (_tcpBuf.Count > 0)
+				GD.PrintErr($"[CustomNet] Partial message in buffer at disconnect ({_tcpBuf.Count} bytes): {Encoding.UTF8.GetString(_tcpBuf.ToArray())}");
 			_connState = ConnState.Disconnected;
 			EmitSignal(SignalName.ServerDisconnected);
 			return;

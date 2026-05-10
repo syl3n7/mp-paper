@@ -10,6 +10,14 @@ public partial class Player : CharacterBody2D
     [Export] public float AvoidRadius    { get; set; } = 64f;   // separation trigger distance
     [Export] public float AvoidStrength  { get; set; } = 1.8f;  // how hard to push away
 
+    /// <summary>Set before AddChild() to mark this instance as a display-only ghost for a remote player.</summary>
+    public bool                IsRemoteGhost { get; set; } = false;
+    /// <summary>Set by Client after spawning the local player to enable UDP position sending.</summary>
+    public CustomNetworkClient CustomNet     { get; set; }
+
+    private const float UdpSendInterval = 1f / 20f;  // 20 Hz
+    private float _udpSendTimer = 0f;
+
     private bool    _isBotMode;
     private Vector2 _spawnOrigin;
     private Vector2 _wanderTarget;
@@ -31,8 +39,12 @@ public partial class Player : CharacterBody2D
 
     public override void _PhysicsProcess(double delta)
     {
-        // Only the owning peer drives this player.
-        if (!IsMultiplayerAuthority())
+        // Remote ghosts are moved externally via OnRemotePositionUpdated — nothing to do here.
+        if (IsRemoteGhost) return;
+
+        // On the custom server backend there is no ENet peer, so IsMultiplayerAuthority()
+        // always returns true. Only skip if ENet is active AND we are not the authority.
+        if (Multiplayer.MultiplayerPeer != null && !IsMultiplayerAuthority())
             return;
 
         Vector2 input;
@@ -58,7 +70,15 @@ public partial class Player : CharacterBody2D
         Velocity = input.Normalized() * Speed;
         MoveAndSlide();
 
-        // Broadcast position to all other peers so they update their puppet copy.
+        // Custom server — send position over UDP at a fixed rate (20 Hz).
+        _udpSendTimer -= (float)delta;
+        if (CustomNet != null && _udpSendTimer <= 0f)
+        {
+            _udpSendTimer = UdpSendInterval;
+            CustomNet.SendPosition(new Vector3(GlobalPosition.X, GlobalPosition.Y, 0f), Quaternion.Identity);
+        }
+
+        // ENet built-in multiplayer — RPC sync.
         if (Multiplayer.MultiplayerPeer != null)
             Rpc(nameof(SyncPosition), GlobalPosition);
     }

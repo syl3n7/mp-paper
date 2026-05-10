@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 
 public partial class Client : Node
 {
@@ -9,14 +10,17 @@ public partial class Client : Node
 	}
 
 	[Export] public string Host { get; set; } = "127.0.0.1";
-	[Export] public int    Port { get; set; } = 7777;
-	[Export] public int    CustomPort { get; set; } = 9000;
-	[Export] public int    UdpPort { get; set; } = 7778;
+	[Export] public int    EnetPort      { get; set; } = 7777;
+	[Export] public int    EnetUdpPort   { get; set; } = 7778;
+	[Export] public int    CustomTcpPort { get; set; } = 7777;
+	[Export] public int    CustomUdpPort { get; set; } = 7778;
 	[Export] public NetworkBackend Backend { get; set; } = NetworkBackend.BuiltInEnet;
 	[Export] public string AutoJoinToken { get; set; } = "test-lab";
 
 	private ENetMultiplayerPeer     _peer;
 	private CustomNetworkClient      _customNet;
+	private bool                     _isBot = false;
+	private readonly Dictionary<string, Player> _remotePlayers = new();
 
 	public override void _Ready()
 	{
@@ -31,6 +35,8 @@ public partial class Client : Node
 		{
 			if (args[i] == "--client" || args[i] == "--bot")
 				isClient = true;
+			if (args[i] == "--bot")
+				_isBot = true;
 			if (args[i] == "--host" && i + 1 < args.Length)
 			{
 				Host = args[i + 1];
@@ -38,18 +44,23 @@ public partial class Client : Node
 			}
 			if (args[i] == "--port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int enetPort))
 			{
-				Port = enetPort;
-				GD.Print($"[Client] ENet port overridden to: {Port}");
+				EnetPort = enetPort;
+				GD.Print($"[Client] ENet port overridden to: {EnetPort}");
+			}
+			if (args[i] == "--enet-udp-port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int enetUdpPort))
+			{
+				EnetUdpPort = enetUdpPort;
+				GD.Print($"[Client] ENet UDP port overridden to: {EnetUdpPort}");
 			}
 			if (args[i] == "--custom-port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int customPort))
 			{
-				CustomPort = customPort;
-				GD.Print($"[Client] Custom server port overridden to: {CustomPort}");
+				CustomTcpPort = customPort;
+				GD.Print($"[Client] Custom TCP port overridden to: {CustomTcpPort}");
 			}
 			if (args[i] == "--udp-port" && i + 1 < args.Length && int.TryParse(args[i + 1], out int udpPort))
 			{
-				UdpPort = udpPort;
-				GD.Print($"[Client] UDP port overridden to: {UdpPort}");
+				CustomUdpPort = udpPort;
+				GD.Print($"[Client] Custom UDP port overridden to: {CustomUdpPort}");
 			}
 			if (args[i] == "--network" && i + 1 < args.Length)
 			{
@@ -64,8 +75,10 @@ public partial class Client : Node
 
 		}
 
-		GD.Print($"[Client] isClient={isClient}, Host={Host}, Port={Port}, CustomPort={CustomPort}, Backend={Backend}");
-		if (!isClient)
+		GD.Print($"[Client] isClient={isClient}, Host={Host}, EnetPort={EnetPort}, EnetUdpPort={EnetUdpPort}, CustomTcpPort={CustomTcpPort}, CustomUdpPort={CustomUdpPort}, Backend={Backend}");
+		// For the CustomServer backend the Godot process is always the client
+		// (the server is an external process), so connect even without --client.
+		if (!isClient && Backend != NetworkBackend.CustomServer)
 		{
 			GD.Print("[Client] Not a client instance - skipping connection");
 			return;
@@ -98,13 +111,13 @@ public partial class Client : Node
 
 	private void ConnectToBuiltInServer()
 	{
-		GD.Print($"[Client] ConnectToServer() - connecting to {Host}:{Port}...");
+		GD.Print($"[Client] ConnectToServer() - connecting to {Host}:{EnetPort}...");
 		_peer = new ENetMultiplayerPeer();
-		var err = _peer.CreateClient(Host, Port);
+		var err = _peer.CreateClient(Host, EnetPort);
 		GD.Print($"[Client] ENetMultiplayerPeer.CreateClient result: {err}");
 		if (err != Error.Ok)
 		{
-			GD.PrintErr($"[Client] Failed to connect to {Host}:{Port} ({err})");
+			GD.PrintErr($"[Client] Failed to connect to {Host}:{EnetPort} ({err})");
 			return;
 		}
 
@@ -116,19 +129,19 @@ public partial class Client : Node
 		Multiplayer.ConnectedToServer    += OnConnectedToServer;
 		Multiplayer.ConnectionFailed     += OnConnectionFailed;
 
-		GD.Print($"[Client] Waiting for connection to {Host}:{Port}...");
+		GD.Print($"[Client] Waiting for connection to {Host}:{EnetPort}...");
 	}
 
 	private void ConnectToCustomServer()
 	{
-		GD.Print($"[Client] ConnectToCustomServer() — connecting to {Host}:{CustomPort}...");
+		GD.Print($"[Client] ConnectToCustomServer() — connecting to {Host}:{CustomTcpPort}...");
 
 		_customNet = new CustomNetworkClient();
 		AddChild(_customNet);
 
 		_customNet.UdpSharedSecret = "change-me-before-deploying"; // match server appsettings.json SecurityConfig:UdpSharedSecret
 		_customNet.UdpHost         = Host;
-		_customNet.UdpPort         = UdpPort;
+		_customNet.UdpPort         = CustomUdpPort;
 
 		_customNet.ServerConnected        += OnCustomServerConnected;
 		_customNet.ServerDisconnected     += OnCustomServerDisconnected;
@@ -150,10 +163,10 @@ public partial class Client : Node
 		_customNet.RelayReceived          += OnRelayReceived;
 		_customNet.RemotePositionUpdated  += OnRemotePositionUpdated;
 
-		var err = _customNet.ConnectToServer(Host, CustomPort);
+		var err = _customNet.ConnectToServer(Host, CustomTcpPort);
 		if (err != Error.Ok)
 		{
-			GD.PrintErr($"[Client] Could not start connection to {Host}:{CustomPort}");
+			GD.PrintErr($"[Client] Could not start connection to {Host}:{CustomTcpPort}");
 			_customNet.QueueFree();
 			_customNet = null;
 		}
@@ -193,7 +206,16 @@ public partial class Client : Node
 		=> GD.Print($"[Client] Room created — id: {roomId}, name: {roomName}");
 
 	private void OnRoomJoined(string roomId)
-		=> GD.Print($"[Client] Joined room: {roomId}");
+	{
+		GD.Print($"[Client] Joined room: {roomId}");
+		// All custom-backend clients spawn immediately on joining — GAME_STARTED is never
+		// sent in the auto-join flow (only when a host explicitly calls StartGame()).
+		if (Backend == NetworkBackend.CustomServer && !_gameRunning)
+		{
+			_gameRunning = true;
+			SpawnLocalCustomPlayer();
+		}
+	}
 
 	private void OnRoomLeft(string roomId)
 		=> GD.Print($"[Client] Left room: {roomId}");
@@ -208,13 +230,36 @@ public partial class Client : Node
 		if (_gameRunning) return;
 		_gameRunning = true;
 		GD.Print($"[Client] Game started — spawn positions: {spawnPositionsJson}");
+		SpawnLocalCustomPlayer();
+	}
+
+	private void SpawnLocalCustomPlayer()
+	{
+		var playerScene = ResourceLoader.Load<PackedScene>("res://Prefabs/p_player.tscn");
+		if (playerScene == null)
+		{
+			GD.PrintErr("[Client] SpawnLocalCustomPlayer: could not load p_player.tscn");
+			return;
+		}
+		var player = playerScene.Instantiate<Player>();
+		player.Name    = "Player_" + (_customNet?.SessionId ?? "local");
+		player.CustomNet = _customNet;
+		GetParent().AddChild(player);
+		GD.Print($"[Client] Spawned local player for custom server: {player.Name}");
 	}
 
 	private void OnPlayerJoined(string playerId, string playerName)
 		=> GD.Print($"[Client] Player joined — id: {playerId}, name: {playerName}");
 
 	private void OnPlayerLeft(string playerId)
-		=> GD.Print($"[Client] Player left — id: {playerId}");
+	{
+		GD.Print($"[Client] Player left — id: {playerId}");
+		if (_remotePlayers.TryGetValue(playerId, out var ghost))
+		{
+			ghost.QueueFree();
+			_remotePlayers.Remove(playerId);
+		}
+	}
 
 	private void OnGameEnded()
 	{
@@ -232,13 +277,28 @@ public partial class Client : Node
 		=> GD.Print($"[Client] Relay from {senderName} ({senderId}): {message}");
 
 	private void OnRemotePositionUpdated(string sessionId, Vector3 position, Quaternion rotation)
-		=> GD.Print($"[Client] Remote pos — {sessionId}: pos={position}, rot={rotation}");
+	{
+		if (!_remotePlayers.TryGetValue(sessionId, out var ghost))
+		{
+			var scene = ResourceLoader.Load<PackedScene>("res://Prefabs/p_player.tscn");
+			if (scene == null) return;
+			ghost = scene.Instantiate<Player>();
+			ghost.Name          = $"Remote_{sessionId}";
+			ghost.IsRemoteGhost = true;
+			GetParent().AddChild(ghost);
+			_remotePlayers[sessionId] = ghost;
+			GD.Print($"[Client] Spawned remote player ghost: {sessionId}");
+		}
+		ghost.GlobalPosition = new Vector2(position.X, position.Y);
+	}
 
 	private void OnAutoAuthFailed()
 	{
-		GD.Print("[Client] Auto-auth failed — manual login required");
-		// TODO: show login UI — for now, demo a register call
-		// _customNet.Register("TestPlayer", "password123");
+		// No stored token — register a fresh guest account so the AUTO_JOIN flow can proceed.
+		string guestName = $"Guest_{Godot.Time.GetTicksMsec() % 100_000}";
+		string guestPass = $"pw_{guestName}";
+		GD.Print($"[Client] Auto-auth failed — registering as guest: {guestName}");
+		_customNet.Register(guestName, guestPass);
 	}
 
 	private void OnAuthFailed(string reason)

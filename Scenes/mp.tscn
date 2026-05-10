@@ -31,6 +31,9 @@ text = "Open New Client"
 
 [node name="Client" type="Node" parent="." unique_id=1176781707]
 script = ExtResource("3_client")
+CustomTcpPort = 7777
+CustomUdpPort = 7778
+Backend = 1
 
 [node name="Server" type="Node" parent="." unique_id=346389787]
 script = ExtResource("3_b3xfe")
