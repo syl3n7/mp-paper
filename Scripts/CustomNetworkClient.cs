@@ -72,6 +72,20 @@ public partial class CustomNetworkClient : Node
 	/// <summary>A RELAY_MESSAGE arrived from another player.</summary>
 	[Signal] public delegate void RelayReceivedEventHandler(string senderId, string senderName, string message);
 
+	// ── Inventory signals ─────────────────────────────────────────────────────
+
+	/// <summary>Full inventory state received (INV_STATE_FULL). slotsJson is the serialised slots array.</summary>
+	[Signal] public delegate void InventoryFullSyncEventHandler(string slotsJson);
+
+	/// <summary>A single slot was updated (INV_SLOT_UPDATED). slotJson is the full slot dict.</summary>
+	[Signal] public delegate void InventorySlotUpdatedEventHandler(string slotJson);
+
+	/// <summary>A slot was cleared (INV_SLOT_UPDATED with no item).</summary>
+	[Signal] public delegate void InventorySlotClearedEventHandler(int slotId);
+
+	/// <summary>An item was dropped to the world (FLOOR_ITEM_SPAWN). dataJson is the full event dict.</summary>
+	[Signal] public delegate void FloorItemSpawnedEventHandler(string dataJson);
+
 	// ── UDP signals ───────────────────────────────────────────────────────────
 
 	/// <summary>Position update received for another player via UDP.</summary>
@@ -117,7 +131,10 @@ public partial class CustomNetworkClient : Node
 	public  string UdpHost { get; set; } = "127.0.0.1";
 	public  int    UdpPort { get; set; } = 7778;
 	private string _serverHost = "";
-
+	/// <summary>Outgoing sequence counter — incremented on every SendPosition call.</summary>
+	private int _udpSeq = 0;
+	/// <summary>Last received sequence number per remote sessionId — used to drop stale UDP packets.</summary>
+	private readonly Dictionary<string, int> _lastUdpSeq = new();
 	// ── Public API ────────────────────────────────────────────────────────────
 
 	/// <summary>
@@ -168,6 +185,7 @@ public partial class CustomNetworkClient : Node
 		var data = new Godot.Collections.Dictionary
 		{
 			{ "command",  "UPDATE" },
+			{ "seq",      _udpSeq++ },
 			{ "position", new Godot.Collections.Dictionary
 				{ { "x", position.X }, { "y", position.Y }, { "z", position.Z } } },
 			{ "rotation", new Godot.Collections.Dictionary
@@ -194,6 +212,34 @@ public partial class CustomNetworkClient : Node
 		};
 		_udp.PutPacket(MakeUdpPacket(data));
 	}
+
+	// ── Inventory public API ──────────────────────────────────────────────────
+
+	/// <summary>Request a full inventory sync (server responds with INV_STATE_FULL).</summary>
+	public void RequestInventorySync()
+		=> Send(new Godot.Collections.Dictionary { { "command", "INV_REQUEST_SYNC" } });
+
+	/// <summary>Move an item from one slot to another (drag &amp; drop).</summary>
+	public void InventoryMoveSlot(int fromSlot, int toSlot)
+		=> Send(new Godot.Collections.Dictionary
+		{
+			{ "command",  "INV_MOVE_SLOT" },
+			{ "fromSlot", fromSlot        },
+			{ "toSlot",   toSlot          },
+		});
+
+	/// <summary>Drop an item from a slot to the world floor.</summary>
+	public void InventoryDrop(int slotId, int quantity = 1)
+		=> Send(new Godot.Collections.Dictionary
+		{
+			{ "command",  "INV_DROP_ITEM" },
+			{ "slotId",   slotId          },
+			{ "quantity", quantity         },
+		});
+
+	/// <summary>Use (consume) the item in the given slot.</summary>
+	public void InventoryUse(int slotId)
+		=> Send(new Godot.Collections.Dictionary { { "command", "INV_USE_ITEM" }, { "slotId", slotId } });
 
 	// ── Room management ───────────────────────────────────────────────────────
 
@@ -346,6 +392,12 @@ public partial class CustomNetworkClient : Node
 					var senderId = msg.ContainsKey("sessionId") ? msg["sessionId"].AsString() : "";
 					if (senderId == SessionId) continue;   // ignore own echo (server shouldn't send, but be safe)
 
+					// Drop out-of-order / duplicate packets.
+					var seq = msg.ContainsKey("seq") ? msg["seq"].AsInt32() : 0;
+					if (_lastUdpSeq.TryGetValue(senderId, out int lastSeq) && seq <= lastSeq)
+						continue;
+					_lastUdpSeq[senderId] = seq;
+
 					var posD = msg["position"].AsGodotDictionary();
 					var rotD = msg["rotation"].AsGodotDictionary();
 					var pos  = new Vector3(
@@ -470,6 +522,8 @@ public partial class CustomNetworkClient : Node
 		_tls = null;
 		_tcp = null;
 		_udpReady       = false;
+		_udpSeq         = 0;
+		_lastUdpSeq.Clear();
 		_hbTimer        = 0.0;
 		_connState      = ConnState.Idle;
 		SessionId       = "";
@@ -664,7 +718,37 @@ public partial class CustomNetworkClient : Node
 		// ── Heartbeat / keep-alive responses (silent) ─────────────────────────
 		if (command is "PONG" or "HEARTBEAT_ACK" or "BYE_OK")
 			return;
-
+		// ── Inventory responses (server uses "type" key, not "command") ───────
+		var type = msg.ContainsKey("type") ? msg["type"].AsString() : "";
+		switch (type)
+		{
+			case "INV_STATE_FULL":
+			{
+				var slotsJson = msg.ContainsKey("slots") ? Json.Stringify(msg["slots"]) : "[]";
+				EmitSignal(SignalName.InventoryFullSync, slotsJson);
+				return;
+			}
+			case "INV_SLOT_UPDATED":
+				EmitSignal(SignalName.InventorySlotUpdated, Json.Stringify(msg));
+				return;
+			case "INV_SLOT_CLEARED":
+			{
+				var slotId = msg.ContainsKey("slotId") ? msg["slotId"].AsInt32() : -1;
+				EmitSignal(SignalName.InventorySlotCleared, slotId);
+				return;
+			}
+			case "INV_ERROR":
+			{
+				var code      = msg.ContainsKey("code")    ? msg["code"].AsString()    : "";
+				var errSlotId = msg.ContainsKey("slotId")  ? msg["slotId"].AsInt32()   : -1;
+				var errMsg    = msg.ContainsKey("message") ? msg["message"].AsString() : "";
+				GD.PrintErr($"[CustomNet] Inventory error [{code}] slot {errSlotId}: {errMsg}");
+				return;
+			}
+			case "FLOOR_ITEM_SPAWN":
+				EmitSignal(SignalName.FloorItemSpawned, Json.Stringify(msg));
+				return;
+		}
 		// ── Room responses ────────────────────────────────────────────────────
 		switch (command)
 		{

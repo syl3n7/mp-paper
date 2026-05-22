@@ -103,6 +103,7 @@ public partial class Server : Node
 
 		// Spawn the server's own player (peer 1) so the host can also move around.
 		SpawnPlayerLocally(1);
+		InitInventory(1);
 		_connectedPlayers.Add(1);
 		_peerConnectTime[1] = 0f;
 		GD.Print("[Server] Server player (Player_1) spawned");
@@ -453,8 +454,9 @@ sb.AppendLine($"  {id,-6}  {rtt,5:F0} ms  {jitter,5:F0} ms  {loss:F1}%");
 			RpcId(id, nameof(SpawnPlayerRpc), existingId);
 		}
 
-		// 2. Spawn the new player on the server.
+		// 2. Spawn the new player on the server and initialise their inventory.
 		SpawnPlayerLocally(id);
+		InitInventory(id);
 		_connectedPlayers.Add(id);
 		_peerConnectTime[id] = _elapsedTime;
 
@@ -469,6 +471,7 @@ sb.AppendLine($"  {id,-6}  {rtt,5:F0} ms  {jitter,5:F0} ms  {loss:F1}%");
 		GD.Print($"[Server] Peer {id} disconnected");
 		_connectedPlayers.Remove(id);
 		_peerConnectTime.Remove(id);
+		_inventories.Remove(id);
 
 		// Remove locally on the server.
 		GetNodeOrNull($"Player_{id}")?.QueueFree();
@@ -519,4 +522,82 @@ sb.AppendLine($"  {id,-6}  {rtt,5:F0} ms  {jitter,5:F0} ms  {loss:F1}%");
 		GD.Print($"[Network] DespawnPlayerRpc({clientId}) received — removing Player_{clientId}");
 		GetNodeOrNull($"Player_{clientId}")?.QueueFree();
 	}
+
+	// ── ENet inventory ───────────────────────────────────────────────────────────
+
+	public const int InventorySize = 30;
+	private static readonly string[] SampleItems =
+		{ "sword_01", "shield_01", "potion_01", "bow_01", "arrow_01" };
+
+	// peerId → slot array ("" = empty)
+	private readonly Dictionary<long, string[]> _inventories = new();
+
+	// Signals — emitted on the CLIENT when the server sends a response RPC.
+	[Signal] public delegate void EnetSlotUpdatedEventHandler(int slotId, string itemId, int quantity);
+	[Signal] public delegate void EnetSlotClearedEventHandler(int slotId);
+	[Signal] public delegate void EnetInventoryErrorEventHandler(string code, int slotId);
+
+	private void InitInventory(long peerId)
+	{
+		var slots = new string[InventorySize];
+		// Seed a handful of items so there is always something to move.
+		var rng = new System.Random((int)peerId);
+		for (int i = 0; i < 5; i++)
+			slots[i] = SampleItems[rng.Next(SampleItems.Length)];
+		_inventories[peerId] = slots;
+		GD.Print($"[Server] Inventory initialised for peer {peerId}");
+	}
+
+	/// <summary>
+	/// Called by a client to move an item between two slots.
+	/// Runs server-side; responds via NotifySlot* RPCs.
+	/// </summary>
+	[Rpc(MultiplayerApi.RpcMode.AnyPeer)]
+	public void RequestMoveSlot(int fromSlot, int toSlot)
+	{
+		var senderId = Multiplayer.GetRemoteSenderId();
+
+		if (!_inventories.TryGetValue(senderId, out var inv))
+		{
+			RpcId(senderId, nameof(NotifyInventoryError), "NOT_OWNER", fromSlot);
+			return;
+		}
+		if ((uint)fromSlot >= InventorySize || (uint)toSlot >= InventorySize || fromSlot == toSlot)
+		{
+			RpcId(senderId, nameof(NotifyInventoryError), "INVALID_SLOT", fromSlot);
+			return;
+		}
+		if (string.IsNullOrEmpty(inv[fromSlot]))
+		{
+			RpcId(senderId, nameof(NotifyInventoryError), "SLOT_EMPTY", fromSlot);
+			return;
+		}
+
+		(inv[fromSlot], inv[toSlot]) = (inv[toSlot], inv[fromSlot]);
+
+		if (!string.IsNullOrEmpty(inv[fromSlot]))
+			RpcId(senderId, nameof(NotifySlotUpdated), fromSlot, inv[fromSlot], 1);
+		else
+			RpcId(senderId, nameof(NotifySlotCleared), fromSlot);
+
+		if (!string.IsNullOrEmpty(inv[toSlot]))
+			RpcId(senderId, nameof(NotifySlotUpdated), toSlot, inv[toSlot], 1);
+		else
+			RpcId(senderId, nameof(NotifySlotCleared), toSlot);
+	}
+
+	// The three methods below run on the CLIENT (server calls RpcId targeting the client).
+	// They just emit a signal so Client.cs (or any other node) can react.
+
+	[Rpc(MultiplayerApi.RpcMode.Authority)]
+	public void NotifySlotUpdated(int slotId, string itemId, int quantity)
+		=> EmitSignal(SignalName.EnetSlotUpdated, slotId, itemId, quantity);
+
+	[Rpc(MultiplayerApi.RpcMode.Authority)]
+	public void NotifySlotCleared(int slotId)
+		=> EmitSignal(SignalName.EnetSlotCleared, slotId);
+
+	[Rpc(MultiplayerApi.RpcMode.Authority)]
+	public void NotifyInventoryError(string code, int slotId)
+		=> EmitSignal(SignalName.EnetInventoryError, code, slotId);
 }

@@ -22,6 +22,11 @@ public partial class Client : Node
 	private bool                     _isBot = false;
 	private readonly Dictionary<string, Player> _remotePlayers = new();
 
+	// Bot inventory simulation
+	private const  double BotInventoryInterval = 5.0;
+	private double _botInventoryTimer = 0.0;
+	private readonly System.Random _rng = new();
+
 	public override void _Ready()
 	{
 		GD.Print("[Client] _Ready() called");
@@ -87,6 +92,38 @@ public partial class Client : Node
 		ConnectToSelectedBackend();
 	}
 
+	public override void _Process(double delta)
+	{
+		if (!_isBot || !_gameRunning) return;
+
+		_botInventoryTimer += delta;
+		if (_botInventoryTimer < BotInventoryInterval) return;
+		_botInventoryTimer = 0.0;
+
+		int fromSlot = _rng.Next(0, Server.InventorySize);
+		int toSlot   = _rng.Next(0, Server.InventorySize);
+		if (fromSlot != toSlot)
+			MoveInventorySlot(fromSlot, toSlot);
+	}
+
+	/// <summary>
+	/// Move an inventory slot — works on both backends.
+	/// Custom server: sends INV_MOVE_SLOT over TCP.
+	/// ENet: calls RequestMoveSlot RPC on the server.
+	/// </summary>
+	public void MoveInventorySlot(int fromSlot, int toSlot)
+	{
+		if (Backend == NetworkBackend.CustomServer)
+		{
+			_customNet?.InventoryMoveSlot(fromSlot, toSlot);
+		}
+		else
+		{
+			var serverNode = GetNodeOrNull<Server>("../Server");
+			serverNode?.RpcId(1, nameof(Server.RequestMoveSlot), fromSlot, toSlot);
+		}
+	}
+
 	public override void _ExitTree()
 	{
 		_customNet?.DisconnectGracefully();
@@ -129,6 +166,18 @@ public partial class Client : Node
 		Multiplayer.ConnectedToServer    += OnConnectedToServer;
 		Multiplayer.ConnectionFailed     += OnConnectionFailed;
 
+		// Wire ENet inventory signals from the Server node (runs on this client instance).
+		var serverNode = GetNodeOrNull<Server>("../Server");
+		if (serverNode != null)
+		{
+			serverNode.EnetSlotUpdated    += (slotId, itemId, qty) =>
+				GD.Print($"[Client] ENet INV slot {slotId} → {itemId} x{qty}");
+			serverNode.EnetSlotCleared    += slotId =>
+				GD.Print($"[Client] ENet INV slot {slotId} cleared");
+			serverNode.EnetInventoryError += (code, slotId) =>
+				GD.PrintErr($"[Client] ENet INV error [{code}] slot {slotId}");
+		}
+
 		GD.Print($"[Client] Waiting for connection to {Host}:{EnetPort}...");
 	}
 
@@ -162,6 +211,8 @@ public partial class Client : Node
 		_customNet.ChatReceived           += OnChatReceived;
 		_customNet.RelayReceived          += OnRelayReceived;
 		_customNet.RemotePositionUpdated  += OnRemotePositionUpdated;
+		_customNet.InventorySlotUpdated   += slotJson => GD.Print($"[Client] Custom INV slot updated: {slotJson}");
+		_customNet.InventorySlotCleared   += slotId  => GD.Print($"[Client] Custom INV slot {slotId} cleared");
 
 		var err = _customNet.ConnectToServer(Host, CustomTcpPort);
 		if (err != Error.Ok)
