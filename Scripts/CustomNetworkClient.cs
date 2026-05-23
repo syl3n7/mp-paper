@@ -184,8 +184,10 @@ public partial class CustomNetworkClient : Node
 		if (!_udpReady) return;
 		var data = new Godot.Collections.Dictionary
 		{
-			{ "command",  "UPDATE" },
-			{ "seq",      _udpSeq++ },
+			{ "command",   "UPDATE"        },
+			{ "sessionId", SessionId       },
+			{ "roomId",    CurrentRoomId   },
+			{ "seq",       _udpSeq++       },
 			{ "position", new Godot.Collections.Dictionary
 				{ { "x", position.X }, { "y", position.Y }, { "z", position.Z } } },
 			{ "rotation", new Godot.Collections.Dictionary

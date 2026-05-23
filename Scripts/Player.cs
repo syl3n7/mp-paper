@@ -22,6 +22,7 @@ public partial class Player : CharacterBody2D
     private Vector2 _spawnOrigin;
     private Vector2 _wanderTarget;
     private float   _waypointTimer;     // force new waypoint after timeout
+    private Camera2D _cam;             // cached for camera follow
 
     public override void _Ready()
     {
@@ -55,11 +56,6 @@ public partial class Player : CharacterBody2D
         }
         else
         {
-            // Ignore input when this window is not in the foreground — prevents
-            // all instances from moving at once when windows overlap.
-            if (!GetViewport().GetWindow().HasFocus())
-                return;
-
             input = Vector2.Zero;
             if (Input.IsActionPressed("RIGHT")) input.X += 1;
             if (Input.IsActionPressed("LEFT"))  input.X -= 1;
@@ -69,6 +65,20 @@ public partial class Player : CharacterBody2D
 
         Velocity = input.Normalized() * Speed;
         MoveAndSlide();
+
+        // Camera follow — only for custom-server players that own their CustomNet
+        // (ENet Player_1 has CustomNet=null so it never hijacks the camera).
+        if (CustomNet != null)
+        {
+            // Lazy-init: player and Camera2D are both children of the same parent node.
+            if (_cam == null)
+            {
+                _cam = GetParent()?.GetNodeOrNull<Camera2D>("Camera2D");
+                _cam?.MakeCurrent();
+            }
+            if (_cam != null)
+                _cam.GlobalPosition = GlobalPosition;
+        }
 
         // Custom server — send position over UDP at a fixed rate (20 Hz).
         _udpSendTimer -= (float)delta;

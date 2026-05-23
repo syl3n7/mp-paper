@@ -98,6 +98,9 @@ public partial class UIManager : Node
 		string execPath = OS.GetExecutablePath();
 		GD.Print($"[UIManager] Executable path: {execPath}");
 
+		var clientNode = GetNodeOrNull<Client>("../../Client");
+		string host    = clientNode?.Host ?? ServerHost;
+
 		var argsList = new List<string>();
 
 		// When running inside the editor, the executable is the Godot editor binary.
@@ -117,7 +120,7 @@ public partial class UIManager : Node
 		argsList.Add("--");
 		argsList.Add("--client");
 		argsList.Add("--host");
-		argsList.Add(ServerHost);
+		argsList.Add(host);
 		argsList.Add("--network");
 		argsList.Add(networkMode);
 		if (networkMode == "custom")
@@ -162,10 +165,13 @@ public partial class UIManager : Node
 			argsList.Add(projectPath);
 		}
 
+		var clientNode = GetNodeOrNull<Client>("../../Client");
+		string host    = clientNode?.Host ?? ServerHost;
+
 		argsList.Add("--");
-		argsList.Add("--bot");          // triggers Client connection + Player AI mode
+		argsList.Add("--bot");
 		argsList.Add("--host");
-		argsList.Add(ServerHost);
+		argsList.Add(host);
 		argsList.Add("--network");
 		argsList.Add(networkMode);
 		if (networkMode == "custom")
