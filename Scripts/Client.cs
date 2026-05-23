@@ -22,10 +22,7 @@ public partial class Client : Node
 	private bool                     _isBot = false;
 	private readonly Dictionary<string, Player> _remotePlayers = new();
 
-	// Bot inventory simulation
-	private const  double BotInventoryInterval = 5.0;
-	private double _botInventoryTimer = 0.0;
-	private readonly System.Random _rng = new();
+	private double _invTimer = 0.0;
 
 	public override void _Ready()
 	{
@@ -96,32 +93,14 @@ public partial class Client : Node
 	{
 		if (!_isBot || !_gameRunning) return;
 
-		_botInventoryTimer += delta;
-		if (_botInventoryTimer < BotInventoryInterval) return;
-		_botInventoryTimer = 0.0;
+		_invTimer += delta;
+		if (_invTimer < GD.RandRange(2.0, 3.0)) return;
+		_invTimer = 0.0;
 
-		int fromSlot = _rng.Next(0, Server.InventorySize);
-		int toSlot   = _rng.Next(0, Server.InventorySize);
-		if (fromSlot != toSlot)
-			MoveInventorySlot(fromSlot, toSlot);
-	}
-
-	/// <summary>
-	/// Move an inventory slot — works on both backends.
-	/// Custom server: sends INV_MOVE_SLOT over TCP.
-	/// ENet: calls RequestMoveSlot RPC on the server.
-	/// </summary>
-	public void MoveInventorySlot(int fromSlot, int toSlot)
-	{
-		if (Backend == NetworkBackend.CustomServer)
-		{
-			_customNet?.InventoryMoveSlot(fromSlot, toSlot);
-		}
-		else
-		{
-			var serverNode = GetNodeOrNull<Server>("../Server");
-			serverNode?.RpcId(1, nameof(Server.RequestMoveSlot), fromSlot, toSlot);
-		}
+		int from = GD.RandRange(0, Server.InventorySize - 1);
+		int to   = GD.RandRange(0, Server.InventorySize - 1);
+		if (from != to)
+			_customNet?.InventoryMoveSlot(from, to);
 	}
 
 	public override void _ExitTree()
@@ -228,7 +207,17 @@ public partial class Client : Node
 	private void OnCustomServerConnected(string sessionId)
 	{
 		GD.Print($"[Client] Connected to custom server — sessionId: {sessionId}");
-		_customNet.TryAutoAuth();
+		if (_isBot)
+		{
+			// Bots always register a fresh unique account so they never share
+			// the main window's token file (user://mp_token.dat is process-shared).
+			string name = $"Bot_{sessionId[..8]}";
+			_customNet.Register(name, $"pw_{name}");
+		}
+		else
+		{
+			_customNet.TryAutoAuth();
+		}
 	}
 
 	private void OnCustomServerDisconnected()
