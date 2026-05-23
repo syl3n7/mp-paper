@@ -2,10 +2,10 @@ using Godot;
 
 public partial class Player : CharacterBody2D
 {
-    [Export] public float Speed         { get; set; } = 200f;
+    [Export] public float Speed         { get; set; } = 80f;   // walking pace (was 200 — too fast)
 
     // ── Bot AI tunables ──────────────────────────────────────────────────────
-    [Export] public float WanderRadius   { get; set; } = 400f;  // max distance from spawn
+    [Export] public float WanderRadius   { get; set; } = 200f;  // max distance from spawn (was 400 — too large)
     [Export] public float WaypointReach  { get; set; } = 24f;   // distance to consider waypoint reached
     [Export] public float AvoidRadius    { get; set; } = 64f;   // separation trigger distance
     [Export] public float AvoidStrength  { get; set; } = 1.8f;  // how hard to push away

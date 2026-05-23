@@ -297,6 +297,15 @@ public partial class Client : Node
 		player.CustomNet = _customNet;
 		GetParent().AddChild(player);
 		GD.Print($"[Client] Spawned local player for custom server: {player.Name}");
+
+		// Attach the Camera2D to this player so the viewport follows them.
+		var camera = GetParent().GetNodeOrNull<Camera2D>("Camera2D");
+		if (camera != null)
+		{
+			camera.Reparent(player);
+			camera.Position = Vector2.Zero;
+			GD.Print("[Client] Camera2D reparented to local player");
+		}
 	}
 
 	private void OnPlayerJoined(string playerId, string playerName)
