@@ -570,6 +570,7 @@ public partial class CustomNetworkClient : Node
 		if (status != StreamPeerTcp.Status.Connected)
 		{
 			GD.PrintErr("[CustomNet] TCP connection failed");
+			_udpReady  = false;
 			_connState = ConnState.Disconnected;
 			EmitSignal(SignalName.ServerDisconnected);
 			return;
@@ -581,6 +582,7 @@ public partial class CustomNetworkClient : Node
 		if (err != Error.Ok)
 		{
 			GD.PrintErr($"[CustomNet] TLS start error: {err}");
+			_udpReady  = false;
 			_connState = ConnState.Disconnected;
 			EmitSignal(SignalName.ServerDisconnected);
 			return;
@@ -601,6 +603,7 @@ public partial class CustomNetworkClient : Node
 		if (status != StreamPeerTls.Status.Connected)
 		{
 			GD.PrintErr("[CustomNet] TLS handshake failed");
+			_udpReady  = false;
 			_connState = ConnState.Disconnected;
 			EmitSignal(SignalName.ServerDisconnected);
 			return;
@@ -620,6 +623,7 @@ public partial class CustomNetworkClient : Node
 			GD.PrintErr($"[CustomNet] TLS link lost — status: {_tls.GetStatus()}");
 			if (_tcpBuf.Count > 0)
 				GD.PrintErr($"[CustomNet] Partial message in buffer at disconnect ({_tcpBuf.Count} bytes): {Encoding.UTF8.GetString(_tcpBuf.ToArray())}");
+			_udpReady  = false;
 			_connState = ConnState.Disconnected;
 			EmitSignal(SignalName.ServerDisconnected);
 			return;
