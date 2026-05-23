@@ -32,6 +32,10 @@ public partial class Player : CharacterBody2D
             if (arg == "--bot") { _isBotMode = true; break; }
         }
 
+        // Any custom-server player (human or bot) wanders automatically so the server
+        // always has observable, predictable position streams to validate.
+        if (CustomNet != null) _isBotMode = true;
+
         _spawnOrigin   = GlobalPosition;
         _wanderTarget  = GlobalPosition;
         _waypointTimer = 0f;    // triggers immediate waypoint pick on first frame

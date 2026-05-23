@@ -181,7 +181,7 @@ public partial class CustomNetworkClient : Node
 	/// </summary>
 	public void SendPosition(Vector3 position, Quaternion rotation)
 	{
-		if (!_udpReady) return;
+		if (!_udpReady || string.IsNullOrEmpty(CurrentRoomId)) return;
 		var data = new Godot.Collections.Dictionary
 		{
 			{ "command",   "UPDATE"        },
