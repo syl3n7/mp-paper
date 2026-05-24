@@ -113,7 +113,8 @@ public partial class CustomNetworkClient : Node
 	/// Hard cap to defend against a runaway server sending garbage with no newlines.
 	private const int MaxLineBytes = 65_536;
 
-	private const string TokenFile = "user://mp_token.dat";
+/// <summary>Token file path — set per-instance to avoid collisions between multiple bots.</summary>
+    public string TokenFilePath { get; set; } = "user://mp_token.dat";
 
 	/// <summary>Seconds between heartbeat packets. Server drops sessions idle for 60 s.</summary>
 	private const double HeartbeatInterval = 15.0;
@@ -464,26 +465,26 @@ public partial class CustomNetworkClient : Node
 
 	private void SaveToken(string token)
 	{
-		using var f = FileAccess.Open(TokenFile, FileAccess.ModeFlags.Write);
-		if (f != null)
-			f.StoreString(token);
-		else
-			GD.PrintErr($"[CustomNet] Could not write token file: {FileAccess.GetOpenError()}");
-	}
+                using var f = FileAccess.Open(TokenFilePath, FileAccess.ModeFlags.Write);
+                if (f != null)
+                        f.StoreString(token);
+                else
+                        GD.PrintErr($"[CustomNet] Could not write token file: {FileAccess.GetOpenError()}");
+        }
 
-	private string LoadToken()
-	{
-		if (!FileAccess.FileExists(TokenFile))
-			return "";
-		using var f = FileAccess.Open(TokenFile, FileAccess.ModeFlags.Read);
-		return f != null ? f.GetAsText().StripEdges() : "";
-	}
+        private string LoadToken()
+        {
+                if (!FileAccess.FileExists(TokenFilePath))
+                        return "";
+                using var f = FileAccess.Open(TokenFilePath, FileAccess.ModeFlags.Read);
+                return f != null ? f.GetAsText().StripEdges() : "";
+        }
 
-	private void ClearToken()
-	{
-		if (FileAccess.FileExists(TokenFile))
-			DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(TokenFile));
-	}
+        private void ClearToken()
+        {
+                if (FileAccess.FileExists(TokenFilePath))
+                        DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(TokenFilePath));
+        }
 
 	// ── Heartbeat ─────────────────────────────────────────────────────────────
 

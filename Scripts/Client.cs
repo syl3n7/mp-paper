@@ -20,6 +20,8 @@ public partial class Client : Node
 	private ENetMultiplayerPeer     _peer;
 	private CustomNetworkClient      _customNet;
 	private bool                     _isBot = false;
+	private int                      _botId = -1;
+	private static int               _inProcBotCounter = 0;
 	private readonly Dictionary<string, Player> _remotePlayers = new();
 
 	private double _invTimer = 0.0;
@@ -73,6 +75,11 @@ public partial class Client : Node
 					Backend = NetworkBackend.BuiltInEnet;
 
 				GD.Print($"[Client] Network backend set to: {Backend}");
+			}
+			if (args[i] == "--bot-id" && i + 1 < args.Length && int.TryParse(args[i + 1], out int botId))
+			{
+				_botId = botId;
+				GD.Print($"[Client] Bot ID set to: {_botId}");
 			}
 
 		}
@@ -167,7 +174,10 @@ public partial class Client : Node
 		_customNet = new CustomNetworkClient();
 		AddChild(_customNet);
 
-		_customNet.UdpSharedSecret = "change-me-before-deploying"; // match server appsettings.json SecurityConfig:UdpSharedSecret
+				// Give each bot its own token file so bots never overwrite each other
+				// or the main client's saved credentials.
+				if (_botId >= 0)
+						_customNet.TokenFilePath = $"user://mp_token_extbot_{_botId}.dat";
 		_customNet.UdpHost         = Host;
 		_customNet.UdpPort         = CustomUdpPort;
 
@@ -206,18 +216,9 @@ public partial class Client : Node
 
 	private void OnCustomServerConnected(string sessionId)
 	{
-		GD.Print($"[Client] Connected to custom server — sessionId: {sessionId}");
-		if (_isBot)
-		{
-			// Bots always register a fresh unique account so they never share
-			// the main window's token file (user://mp_token.dat is process-shared).
-			string name = $"Bot_{sessionId[..8]}";
-			_customNet.Register(name, $"pw_{name}");
-		}
-		else
-		{
-			_customNet.TryAutoAuth();
-		}
+				GD.Print($"[Client] Connected to custom server \u2014 sessionId: {sessionId}");
+				// Always try the saved token first; OnAutoAuthFailed handles the fallback.
+				_customNet.TryAutoAuth();
 	}
 
 	private void OnCustomServerDisconnected()
@@ -365,8 +366,9 @@ public partial class Client : Node
 		botNet.UdpSharedSecret = "change-me-before-deploying";
 		botNet.UdpHost         = Host;
 		botNet.UdpPort         = CustomUdpPort;
-		AddChild(botNet);
-
+				// Unique token file per in-process bot so they don't clobber each other
+				// or the main client's saved credentials.
+				botNet.TokenFilePath   = $"user://mp_token_inprocbot_{_inProcBotCounter++}.dat";
 		botNet.ServerConnected += (sessionId) =>
 		{
 			GD.Print($"[Bot] Connected — {sessionId}");
@@ -408,14 +410,24 @@ public partial class Client : Node
 
 	private void OnAutoAuthFailed()
 	{
-		// No stored token — register a fresh guest account so the AUTO_JOIN flow can proceed.
-		string guestName = $"Guest_{Godot.Time.GetTicksMsec() % 100_000}";
-		string guestPass = $"pw_{guestName}";
-		GD.Print($"[Client] Auto-auth failed — registering as guest: {guestName}");
-		_customNet.Register(guestName, guestPass);
-	}
+				// No stored token — register a fresh account.
+				string name, pass;
+				if (_botId >= 0)
+				{
+						// External-process bot: stable name tied to the bot-id slot.
+						name = $"ExtBot_{_botId}";
+						pass = $"pw_ExtBot_{_botId}";
+				}
+				else
+				{
+						name = $"Guest_{Godot.Time.GetTicksMsec() % 100_000}";
+						pass = $"pw_{name}";
+				}
+				GD.Print($"[Client] Auto-auth failed \u2014 registering as: {name}");
+				_customNet.Register(name, pass);
+		}
 
-	private void OnAuthFailed(string reason)
+		private void OnAuthFailed(string reason)
 	{
 		GD.PrintErr($"[Client] Auth failed: {reason}");
 	}

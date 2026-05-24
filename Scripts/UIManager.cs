@@ -16,6 +16,7 @@ public partial class UIManager : Node
 	private Button _spawnEnetBotButton;
 	private Button _spawnCustomBotButton;
 	private Button _exportLogButton;
+	private int    _customBotIdCounter = 0;
 
 	public override void _Ready()
 	{
@@ -145,9 +146,7 @@ public partial class UIManager : Node
 	private void OnSpawnCustomBotPressed()
 	{
 		GD.Print("[UIManager] Spawn Bot (Custom) button pressed");
-		var client = GetNodeOrNull<Client>("../../Client");
-		if (client == null) { GD.PrintErr("[UIManager] Client node not found"); return; }
-		client.SpawnInProcessBot();
+		SpawnBot("custom", CustomTcpPort, CustomUdpPort);
 	}
 
 	private void SpawnBot(string networkMode, int port, int udpPort)
