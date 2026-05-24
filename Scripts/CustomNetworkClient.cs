@@ -722,7 +722,12 @@ public partial class CustomNetworkClient : Node
 			}
 		}
 
-		// ── Heartbeat / keep-alive responses (silent) ─────────────────────────
+		// ── Heartbeat / keep-alive ────────────────────────────────────────────
+		if (command == "PING")
+		{
+			Send(new Godot.Collections.Dictionary { { "command", "PONG" } });
+			return;
+		}
 		if (command is "PONG" or "HEARTBEAT_ACK" or "BYE_OK")
 			return;
 		// ── Inventory responses (server uses "type" key, not "command") ───────

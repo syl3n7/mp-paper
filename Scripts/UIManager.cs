@@ -62,6 +62,15 @@ public partial class UIManager : Node
 		GetNode("VBoxContainer").AddChild(_exportLogButton);
 		GD.Print("[UIManager] Export log button configured");
 
+		// Disable the export button when using the custom backend — export lives on the server dashboard.
+		bool isCustomBackend = GetNodeOrNull<Client>("../../Client")?.Backend == Client.NetworkBackend.CustomServer;
+		if (isCustomBackend)
+		{
+			_exportLogButton.Disabled     = true;
+			_exportLogButton.TooltipText  = "Metrics export is available on the server dashboard (port 8080)";
+			GD.Print("[UIManager] Custom backend: export button disabled (use server dashboard)");
+		}
+
 		// Stats label — added programmatically so the .tscn stays unchanged.
 		StatsLabel = new Label
 		{
