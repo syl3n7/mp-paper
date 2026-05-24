@@ -328,6 +328,7 @@ public partial class Client : Node
 
 	private void OnRemotePositionUpdated(string sessionId, Vector3 position, Quaternion rotation)
 	{
+		if (sessionId == _customNet?.SessionId) return;   // ignore own echo
 		if (!_remotePlayers.TryGetValue(sessionId, out var ghost))
 		{
 			var scene = ResourceLoader.Load<PackedScene>("res://Prefabs/p_player.tscn");

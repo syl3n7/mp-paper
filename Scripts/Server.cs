@@ -69,13 +69,26 @@ public partial class Server : Node
 		var args = OS.GetCmdlineUserArgs();
 		GD.Print($"[Server] Command-line user args: [{string.Join(", ", args)}]");
 
-		foreach (var arg in args)
+		for (int i = 0; i < args.Length; i++)
 		{
-			if (arg == "--client" || arg == "--bot")
+			if (args[i] == "--client" || args[i] == "--bot")
 			{
 				GD.Print("[Server] client/bot flag detected - skipping server startup");
 				return;
 			}
+			if (args[i] == "--network" && i + 1 < args.Length && args[i + 1].ToLowerInvariant() == "custom")
+			{
+				GD.Print("[Server] Custom network backend detected - skipping ENet server startup");
+				return;
+			}
+		}
+
+		// Also skip if the sibling Client node has its Backend export set to CustomServer.
+		var client = GetParent().GetNodeOrNull<Client>("Client");
+		if (client != null && client.Backend == Client.NetworkBackend.CustomServer)
+		{
+			GD.Print("[Server] Client Backend=CustomServer - skipping ENet server startup");
+			return;
 		}
 
 		StartServer();
