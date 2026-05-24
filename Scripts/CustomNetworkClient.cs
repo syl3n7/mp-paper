@@ -777,6 +777,18 @@ public partial class CustomNetworkClient : Node
 				CurrentRoomId = msg.ContainsKey("roomId") ? msg["roomId"].AsString() : "";
 				bool autoJoined = msg.ContainsKey("autoJoined") && msg["autoJoined"].AsBool();
 				GD.Print($"[CustomNet] Joined room: {CurrentRoomId}{(autoJoined ? " (auto-joined)" : "")}");
+				// Emit PlayerJoined for each player already in the room before firing RoomJoined.
+				if (msg.ContainsKey("players"))
+				{
+					foreach (var entry in msg["players"].AsGodotArray())
+					{
+						var p     = entry.AsGodotDictionary();
+						var pid   = p.ContainsKey("id")   ? p["id"].AsString()   : "";
+						var pname = p.ContainsKey("name") ? p["name"].AsString() : "";
+						if (!string.IsNullOrEmpty(pid) && pid != SessionId)
+							EmitSignal(SignalName.PlayerJoined, pid, pname);
+					}
+				}
 				EmitSignal(SignalName.RoomJoined, CurrentRoomId);
 				return;
 			}
@@ -802,18 +814,19 @@ public partial class CustomNetworkClient : Node
 				EmitSignal(SignalName.GameStarted, spawnJson);
 				return;
 			}
-			// Phase-3 — handlers ready, server not yet sending these
 			case "PLAYER_JOINED":
 			{
-				var pid   = msg.ContainsKey("playerId")   ? msg["playerId"].AsString()   : "";
-				var pname = msg.ContainsKey("playerName") ? msg["playerName"].AsString() : "";
-				EmitSignal(SignalName.PlayerJoined, pid, pname);
+				var pid   = msg.ContainsKey("sessionId") ? msg["sessionId"].AsString() : "";
+				var pname = msg.ContainsKey("name")      ? msg["name"].AsString()      : "";
+				if (!string.IsNullOrEmpty(pid) && pid != SessionId)
+					EmitSignal(SignalName.PlayerJoined, pid, pname);
 				return;
 			}
 			case "PLAYER_LEFT":
 			{
-				var pid = msg.ContainsKey("playerId") ? msg["playerId"].AsString() : "";
-				EmitSignal(SignalName.PlayerLeft, pid);
+				var pid = msg.ContainsKey("sessionId") ? msg["sessionId"].AsString() : "";
+				if (!string.IsNullOrEmpty(pid))
+					EmitSignal(SignalName.PlayerLeft, pid);
 				return;
 			}
 			case "GAME_ENDED":

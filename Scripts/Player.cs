@@ -18,7 +18,6 @@ public partial class Player : CharacterBody2D
     private const float UdpSendInterval = 1f / 20f;  // 20 Hz
     private float _udpSendTimer = 0f;
 
-    private bool    _isBotMode;
     private Vector2 _spawnOrigin;
     private Vector2 _wanderTarget;
     private float   _waypointTimer;     // force new waypoint after timeout
@@ -26,15 +25,6 @@ public partial class Player : CharacterBody2D
     public override void _Ready()
     {
         GD.Print($"[Player] {Name} ready — authority={GetMultiplayerAuthority()}, isAuthority={IsMultiplayerAuthority()}");
-
-        foreach (var arg in OS.GetCmdlineUserArgs())
-        {
-            if (arg == "--bot") { _isBotMode = true; break; }
-        }
-
-        // Any custom-server player (human or bot) wanders automatically so the server
-        // always has observable, predictable position streams to validate.
-        if (CustomNet != null) _isBotMode = true;
 
         _spawnOrigin   = GlobalPosition;
         _wanderTarget  = GlobalPosition;
@@ -51,22 +41,7 @@ public partial class Player : CharacterBody2D
         if (Multiplayer.MultiplayerPeer != null && !IsMultiplayerAuthority())
             return;
 
-        Vector2 input;
-
-        if (_isBotMode)
-        {
-            input = GetBotInput((float)delta);
-        }
-        else
-        {
-            input = Vector2.Zero;
-            if (Input.IsActionPressed("RIGHT")) input.X += 1;
-            if (Input.IsActionPressed("LEFT"))  input.X -= 1;
-            if (Input.IsActionPressed("DOWN"))  input.Y += 1;
-            if (Input.IsActionPressed("UP"))    input.Y -= 1;
-        }
-
-        Velocity = input.Normalized() * Speed;
+        Velocity = GetWanderInput((float)delta).Normalized() * Speed;
         MoveAndSlide();
 
         // Custom server — send position over UDP at a fixed rate (20 Hz).
@@ -82,9 +57,9 @@ public partial class Player : CharacterBody2D
             Rpc(nameof(SyncPosition), GlobalPosition);
     }
 
-    // ── Bot AI ───────────────────────────────────────────────────────────────
+    // ── Wander AI ─────────────────────────────────────────────────────────────
 
-    private Vector2 GetBotInput(float delta)
+    private Vector2 GetWanderInput(float delta)
     {
         _waypointTimer -= delta;
 
@@ -96,8 +71,6 @@ public partial class Player : CharacterBody2D
         }
 
         Vector2 dir = (_wanderTarget - GlobalPosition).Normalized();
-
-        // Add separation so bots (and players) push each other apart.
         dir += GetSeparation();
 
         return dir;     // normalized in _PhysicsProcess

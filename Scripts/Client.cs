@@ -289,7 +289,17 @@ public partial class Client : Node
 	}
 
 	private void OnPlayerJoined(string playerId, string playerName)
-		=> GD.Print($"[Client] Player joined — id: {playerId}, name: {playerName}");
+	{
+		GD.Print($"[Client] Player joined — id: {playerId}, name: {playerName}");
+		if (_remotePlayers.ContainsKey(playerId)) return;  // idempotent
+		var scene = ResourceLoader.Load<PackedScene>("res://Prefabs/p_player.tscn");
+		if (scene == null) return;
+		var ghost = scene.Instantiate<Player>();
+		ghost.Name          = $"Remote_{playerId}";
+		ghost.IsRemoteGhost = true;
+		GetParent().AddChild(ghost);
+		_remotePlayers[playerId] = ghost;
+	}
 
 	private void OnPlayerLeft(string playerId)
 	{
