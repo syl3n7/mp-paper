@@ -13,9 +13,8 @@ public partial class UIManager : Node
 	/// <summary>Populated at runtime; Server.cs writes stats into this label.</summary>
 	public Label StatsLabel { get; private set; }
 
-	private Button _spawnBuiltInClientButton;
-	private Button _spawnCustomClientButton;
-	private Button _spawnBotButton;
+	private Button _spawnEnetBotButton;
+	private Button _spawnCustomBotButton;
 	private Button _exportLogButton;
 
 	public override void _Ready()
@@ -29,31 +28,28 @@ public partial class UIManager : Node
 			return;
 		}
 
-		// The button lives under VBoxContainer/SpawnClientButton in the scene.
-		_spawnBuiltInClientButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
-		GD.Print($"[UIManager] Button node found: {_spawnBuiltInClientButton != null}");
-		_spawnBuiltInClientButton.Text = "Open Client (Built-in)";
-		_spawnBuiltInClientButton.Pressed += () => OnSpawnClientPressed("enet", EnetPort, EnetUdpPort);
+// Repurpose the scene button as the ENet bot launcher.
+			_spawnEnetBotButton = GetNode<Button>("VBoxContainer/SpawnClientButton");
+			GD.Print($"[UIManager] ENet bot button found: {_spawnEnetBotButton != null}");
+			_spawnEnetBotButton.Text = "Spawn Bot (ENet)";
+			_spawnEnetBotButton.Pressed += OnSpawnBotPressed;
 
-		_spawnCustomClientButton = new Button
-		{
-			Name = "SpawnCustomClientButton",
-			Text = "Spawn Bot (Custom)",
-			SizeFlagsHorizontal = Control.SizeFlags.Fill,
-		};
-		_spawnCustomClientButton.Pressed += OnSpawnCustomBotPressed;
-		GetNode("VBoxContainer").AddChild(_spawnCustomClientButton);
-		GD.Print("[UIManager] Built-in and custom client buttons configured");
+			_spawnCustomBotButton = new Button
+			{
+				Name                = "SpawnCustomBotButton",
+				Text                = "Spawn Bot (Custom)",
+				SizeFlagsHorizontal = Control.SizeFlags.Fill,
+			};
+			_spawnCustomBotButton.Pressed += OnSpawnCustomBotPressed;
+			GetNode("VBoxContainer").AddChild(_spawnCustomBotButton);
+			GD.Print("[UIManager] Bot buttons configured");
 
-		_spawnBotButton = new Button
-		{
-			Name                 = "SpawnBotButton",
-			Text                 = "Spawn Bot (ENet)",
-			SizeFlagsHorizontal  = Control.SizeFlags.Fill,
-		};
-		_spawnBotButton.Pressed += OnSpawnBotPressed;
-		GetNode("VBoxContainer").AddChild(_spawnBotButton);
-		GD.Print("[UIManager] Bot button configured");
+			// Disable the button that doesn't match the active backend.
+			var clientNode = GetNodeOrNull<Client>("../../Client");
+			bool useCustom = clientNode?.Backend == Client.NetworkBackend.CustomServer;
+			_spawnEnetBotButton.Disabled   = useCustom;
+			_spawnCustomBotButton.Disabled = !useCustom;
+			GD.Print($"[UIManager] Backend={(useCustom ? "Custom" : "ENet")}: ENet bot {(useCustom ? "disabled" : "enabled")}, Custom bot {(useCustom ? "enabled" : "disabled")}");
 
 		_exportLogButton = new Button
 		{
@@ -82,10 +78,9 @@ public partial class UIManager : Node
 			if (arg == "--client" || arg == "--bot")
 			{
 				GD.Print("[UIManager] Running as client/bot - hiding spawn buttons");
-				_spawnBuiltInClientButton.Visible = false;
-				_spawnCustomClientButton.Visible  = false;
-				_spawnBotButton.Visible           = false;
-				_exportLogButton.Visible          = false;
+				_spawnEnetBotButton.Visible   = false;
+				_spawnCustomBotButton.Visible = false;
+				_exportLogButton.Visible      = false;
 				return;
 			}
 		}
