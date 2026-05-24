@@ -145,7 +145,9 @@ public partial class UIManager : Node
 	private void OnSpawnCustomBotPressed()
 	{
 		GD.Print("[UIManager] Spawn Bot (Custom) button pressed");
-		SpawnBot("custom", CustomTcpPort, CustomUdpPort);
+		var client = GetNodeOrNull<Client>("../../Client");
+		if (client == null) { GD.PrintErr("[UIManager] Client node not found"); return; }
+		client.SpawnInProcessBot();
 	}
 
 	private void SpawnBot(string networkMode, int port, int udpPort)

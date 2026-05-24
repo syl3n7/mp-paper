@@ -297,6 +297,7 @@ public partial class Client : Node
 		var ghost = scene.Instantiate<Player>();
 		ghost.Name          = $"Remote_{playerId}";
 		ghost.IsRemoteGhost = true;
+		ghost.Visible       = false;  // hidden until first UDP position arrives
 		GetParent().AddChild(ghost);
 		_remotePlayers[playerId] = ghost;
 	}
@@ -336,11 +337,73 @@ public partial class Client : Node
 			ghost = scene.Instantiate<Player>();
 			ghost.Name          = $"Remote_{sessionId}";
 			ghost.IsRemoteGhost = true;
+			ghost.Visible       = false;
 			GetParent().AddChild(ghost);
 			_remotePlayers[sessionId] = ghost;
-			GD.Print($"[Client] Spawned remote player ghost: {sessionId}");
+			GD.Print($"[Client] Late-spawned ghost for {sessionId[..8]}");
 		}
 		ghost.GlobalPosition = new Vector2(position.X, position.Y);
+		if (!ghost.Visible)
+		{
+			ghost.Visible = true;
+			GD.Print($"[Client] Ghost {sessionId[..8]} now visible at ({position.X:F1}, {position.Y:F1})");
+		}
+	}
+
+	// ── In-process bot ────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Spawns a second player controlled by a fresh CustomNetworkClient running
+	/// inside this same process. The bot wanders and sends UDP; the main client
+	/// receives the server-relay and shows the bot as a ghost.
+	/// </summary>
+	public void SpawnInProcessBot()
+	{
+		GD.Print("[Bot] Spawning in-process bot...");
+
+		var botNet = new CustomNetworkClient();
+		botNet.UdpSharedSecret = "change-me-before-deploying";
+		botNet.UdpHost         = Host;
+		botNet.UdpPort         = CustomUdpPort;
+		AddChild(botNet);
+
+		botNet.ServerConnected += (sessionId) =>
+		{
+			GD.Print($"[Bot] Connected — {sessionId}");
+			string name = $"Bot_{sessionId[..8]}";
+			botNet.Register(name, $"pw_{name}");
+		};
+
+		botNet.Authenticated += (username) =>
+		{
+			GD.Print($"[Bot] Authenticated as: {username}");
+			botNet.AutoJoin(AutoJoinToken);
+		};
+
+		botNet.RoomJoined += (roomId) =>
+		{
+			GD.Print($"[Bot] Joined room: {roomId}");
+			var scene = ResourceLoader.Load<PackedScene>("res://Prefabs/p_player.tscn");
+			if (scene == null) { GD.PrintErr("[Bot] Could not load player scene"); return; }
+			var botPlayer           = scene.Instantiate<Player>();
+			string sid              = botNet.SessionId ?? "bot";
+			botPlayer.Name          = $"BotLocal_{sid[..8]}";
+			botPlayer.IsRemoteGhost = false;
+			botPlayer.CustomNet     = botNet;
+			botPlayer.Visible       = false;   // ghost (Remote_*) is the visual representation
+			GetParent().AddChild(botPlayer);
+			GD.Print($"[Bot] Wander player spawned (hidden, sending UDP): {botPlayer.Name}");
+		};
+
+		botNet.AuthFailed += (reason) => GD.PrintErr($"[Bot] Auth failed: {reason}");
+		botNet.ServerDisconnected += () => GD.PrintErr("[Bot] Disconnected from server");
+
+		var err = botNet.ConnectToServer(Host, CustomTcpPort);
+		if (err != Error.Ok)
+		{
+			GD.PrintErr($"[Bot] Failed to connect: {err}");
+			botNet.QueueFree();
+		}
 	}
 
 	private void OnAutoAuthFailed()
