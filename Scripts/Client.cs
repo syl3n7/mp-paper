@@ -19,6 +19,7 @@ public partial class Client : Node
 
 	private ENetMultiplayerPeer     _peer;
 	private CustomNetworkClient      _customNet;
+	private Server                   _serverNode;
 	private bool                     _isBot = false;
 	private int                      _botId = -1;
 	private static int               _inProcBotCounter = 0;
@@ -107,7 +108,12 @@ public partial class Client : Node
 		int from = GD.RandRange(0, Server.InventorySize - 1);
 		int to   = GD.RandRange(0, Server.InventorySize - 1);
 		if (from != to)
-			_customNet?.InventoryMoveSlot(from, to);
+		{
+			if (Backend == NetworkBackend.CustomServer)
+				_customNet?.InventoryMoveSlot(from, to);
+			else
+				_serverNode?.RpcId(1, Server.MethodName.RequestMoveSlot, from, to);
+		}
 	}
 
 	public override void _ExitTree()
@@ -153,14 +159,14 @@ public partial class Client : Node
 		Multiplayer.ConnectionFailed     += OnConnectionFailed;
 
 		// Wire ENet inventory signals from the Server node (runs on this client instance).
-		var serverNode = GetNodeOrNull<Server>("../Server");
-		if (serverNode != null)
+		_serverNode = GetNodeOrNull<Server>("../Server");
+		if (_serverNode != null)
 		{
-			serverNode.EnetSlotUpdated    += (slotId, itemId, qty) =>
+			_serverNode.EnetSlotUpdated    += (slotId, itemId, qty) =>
 				GD.Print($"[Client] ENet INV slot {slotId} → {itemId} x{qty}");
-			serverNode.EnetSlotCleared    += slotId =>
+			_serverNode.EnetSlotCleared    += slotId =>
 				GD.Print($"[Client] ENet INV slot {slotId} cleared");
-			serverNode.EnetInventoryError += (code, slotId) =>
+			_serverNode.EnetInventoryError += (code, slotId) =>
 				GD.PrintErr($"[Client] ENet INV error [{code}] slot {slotId}");
 		}
 
@@ -433,7 +439,11 @@ public partial class Client : Node
 	}
 
 	private void OnPeerConnected(long id)    => GD.Print($"[Client] OnPeerConnected - peer id: {id}");
-	private void OnConnectedToServer()        => GD.Print($"[Client] Connected to ENet server — my id: {Multiplayer.GetUniqueId()}");
+	private void OnConnectedToServer()
+	{
+		GD.Print($"[Client] Connected to ENet server — my id: {Multiplayer.GetUniqueId()}");
+		if (_isBot) _gameRunning = true;
+	}
 	private void OnPeerDisconnected(long id)  => GD.Print($"[Client] Disconnected from peer {id}");
 	private void OnConnectionFailed()         => GD.PrintErr("[Client] Connection FAILED - server unreachable or refused");
 }
