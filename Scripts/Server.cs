@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Diagnostics;
@@ -166,6 +167,9 @@ public partial class Server : Node
 
 	private void InitMetrics()
 	{
+		// Force invariant culture so decimal separators in CSV are always '.' regardless of system locale.
+		System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+
 		// RunTag defaults to UTC timestamp so each run is uniquely identified.
 		if (string.IsNullOrWhiteSpace(RunTag))
 			RunTag = DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'");
